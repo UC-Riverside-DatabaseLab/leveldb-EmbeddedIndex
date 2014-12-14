@@ -14,6 +14,7 @@
 #include "leveldb/table.h"
 #include "port/port.h"
 #include "db/db_impl.h"
+#include "TwoD_IT_w_TopK/TwoD_IT_w_TopK.h"
 
 namespace leveldb {
 
@@ -54,13 +55,20 @@ Status Get(const ReadOptions& options,
                        string secKey,int topKOutput,DBImpl* db) ;
   // Evict any entry for the specified file number
   void Evict(uint64_t file_number);
-
+ TwoD_IT_w_TopK* getIntervalTree()
+ {
+     return intervalTree_;
+ }
  private:
   Env* const env_;
   const std::string dbname_;
   const Options* options_;
   Cache* cache_;
-
+  TwoD_IT_w_TopK* intervalTree_;
+  
+  //Added interval tree for the database created for secondary indexed range query
+  
+  
   Status FindTable(uint64_t file_number, uint64_t file_size, Cache::Handle**);
 };
 

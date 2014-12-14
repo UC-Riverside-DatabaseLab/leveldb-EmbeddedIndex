@@ -141,6 +141,7 @@ struct Options {
   // Create an Options object with default values for all fields.
   string secondaryAtt;
   string PrimaryAtt;
+  string IntervalTreeFileName;
   //////////////////Secondary Filter////////////
   
   

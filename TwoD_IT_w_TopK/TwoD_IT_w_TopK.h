@@ -44,26 +44,36 @@ protected:
 class TwoD_IT_w_TopK {
 public:
   TwoD_IT_w_TopK();
-  TwoD_IT_w_TopK(const std::string & filename);
+  TwoD_IT_w_TopK(const std::string &filename, const bool &sync_from_file);
   ~TwoD_IT_w_TopK();
 
-  void insertInterval(const std::string id, const std::string minKey, const std::string maxKey, const long long maxTimestamp);
+  void insertInterval(const std::string &id, const std::string &minKey, const std::string &maxKey, const long long &maxTimestamp);
   
-  void deleteInterval(const std::string id);
-  void deleteAllIntervals(const std::string id_prefix);
+  void deleteInterval(const std::string &id);
+  void deleteAllIntervals(const std::string &id_prefix);
   
-  void getInterval(TwoD_Interval *ret_interval, const std::string id) const;
-  void topK(std::vector<TwoD_Interval> *ret_value, const std::string minKey, const std::string maxKey, const int k) const;
+  void getInterval(TwoD_Interval *ret_interval, const std::string &id) const;
+  void topK(std::vector<TwoD_Interval> *ret_value, const std::string &minKey, const std::string &maxKey, const int &k) const;
   
-  void sync(const std::string & filename) const;
+  void sync() const;
+  void setSyncFile(const std::string &filename);
+  void getSyncFile(std::string *filename) const;
+  void setSyncThreshold(const long &threshold);
+  void getSyncThreshold(long *threshold) const;
   
-  void changeIdDelimiter(const char new_delim);
+  void setIdDelimiter(const char &delim);
+  void getIdDelimiter(char *delim) const;
 
 private:
   std::list<TwoD_Interval> storage;
   
   std::unordered_map<std::string, std::unordered_set<std::string> > ids;
   char id_delim;
+  
+  std::string sync_file;
+  long sync_threshold;
+  mutable long sync_counter;
+  void incrementSyncCounter(const long &increment) const;
   
 };
 

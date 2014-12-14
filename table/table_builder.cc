@@ -16,7 +16,10 @@
 #include "util/coding.h"
 #include "util/crc32c.h"
 #include "rapidjson/document.h"
+#include "db/dbformat.h"
 
+#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
 namespace leveldb {
 
 struct TableBuilder::Rep {
@@ -45,6 +48,11 @@ struct TableBuilder::Rep {
   BlockHandle pending_handle;  // Handle to add to index block
 
   std::string compressed_output;
+  
+  //Add Min Max and MaxTimestamp secondary attribute value of a Block for Interval Tree
+  std::string maxSecValue;
+  std::string minSecValue;
+  uint64_t maxSecSeqNumber;
 
   Rep(const Options& opt, WritableFile* f)
       : options(opt),
@@ -59,13 +67,16 @@ struct TableBuilder::Rep {
                      : new FilterBlockBuilder(opt.filter_policy)),
         secondary_filter_block(opt.filter_policy == NULL ? NULL
                      : new FilterBlockBuilder(opt.filter_policy)),
-             
+        maxSecValue(""),
+        minSecValue(""),
+        maxSecSeqNumber(-1),     
         pending_index_entry(false) {
     index_block_options.block_restart_interval = 1;
+   
   }
 };
 
-TableBuilder::TableBuilder(const Options& options, WritableFile* file)
+TableBuilder::TableBuilder(const Options& options, WritableFile* file, TwoD_IT_w_TopK* intervalTree, uint64_t fileN)
     : rep_(new Rep(options, file)) {
   if (rep_->filter_block != NULL) {
     rep_->filter_block->StartBlock(0);
@@ -73,6 +84,9 @@ TableBuilder::TableBuilder(const Options& options, WritableFile* file)
   if (rep_->secondary_filter_block != NULL) {
     rep_->secondary_filter_block->StartBlock(0);
   }
+  
+  intervalTree_ = intervalTree;
+  fileNumber =  fileN;
 }
 
 TableBuilder::~TableBuilder() {
@@ -116,6 +130,10 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     r->pending_handle.EncodeTo(&handle_encoding);
     r->index_block.Add(r->last_key, Slice(handle_encoding));
     r->pending_index_entry = false;
+    // Insert in the interval tree the new blocks info
+    
+    intervalTree_->insertInterval(SSTR(fileNumber)+r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+    
   }
 
   if (r->filter_block != NULL) {
@@ -181,7 +199,25 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
   
   
   r->secondary_filter_block->AddKey(Key);
+  if(rep_->maxSecValue.compare(sKey.str())<0)
+  {
+      rep_->maxSecValue = sKey.str();
+  }
+  
+  if(rep_->minSecValue.compare(sKey.str())>0)
+  {
+      rep_->maxSecValue = sKey.str();
+  }
+  ParsedInternalKey parsed_key;
+  if (!ParseInternalKey(key, &parsed_key)) {
+    if(rep_->maxSecSeqNumber < parsed_key.sequence)
+    {
+        rep_->maxSecSeqNumber = parsed_key.sequence;
+    }
+  }
+  
 }
+  
   r->last_key.assign(key.data(), key.size());
   r->num_entries++;
   r->data_block.Add(key, value);
@@ -323,6 +359,10 @@ Status TableBuilder::Finish() {
       r->pending_handle.EncodeTo(&handle_encoding);
       r->index_block.Add(r->last_key, Slice(handle_encoding));
       r->pending_index_entry = false;
+      
+      
+      intervalTree_->insertInterval(SSTR(fileNumber) + r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+    
     }
     WriteBlock(&r->index_block, &index_block_handle);
   }

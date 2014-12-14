@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include "leveldb/options.h"
 #include "leveldb/status.h"
+#include "TwoD_IT_w_TopK/TwoD_IT_w_TopK.h"
 
 namespace leveldb {
 
@@ -28,7 +29,7 @@ class TableBuilder {
   // Create a builder that will store the contents of the table it is
   // building in *file.  Does not close the file.  It is up to the
   // caller to close the file after calling Finish().
-  TableBuilder(const Options& options, WritableFile* file);
+  TableBuilder(const Options& options, WritableFile* file, TwoD_IT_w_TopK* intervalTree, uint64_t fileNumber);
 
   // REQUIRES: Either Finish() or Abandon() has been called.
   ~TableBuilder();
@@ -81,7 +82,9 @@ class TableBuilder {
 
   struct Rep;
   Rep* rep_;
-
+  
+  TwoD_IT_w_TopK* intervalTree_;
+  uint64_t fileNumber;
   // No copying allowed
   TableBuilder(const TableBuilder&);
   void operator=(const TableBuilder&);
