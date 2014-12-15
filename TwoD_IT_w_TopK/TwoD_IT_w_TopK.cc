@@ -49,7 +49,7 @@ if (sync_from_file) {
 
   if (ifile.is_open()) {
     std::string id, minKey, maxKey;
-    long long maxTimestamp;
+    uint64_t maxTimestamp;
 
     while (ifile>>id && ifile>>minKey && ifile>>maxKey && ifile>>maxTimestamp) {
       insertInterval(id, minKey, maxKey, maxTimestamp);
@@ -66,7 +66,7 @@ TwoD_IT_w_TopK::~TwoD_IT_w_TopK() { sync(); };
 
 
 //
-void TwoD_IT_w_TopK::insertInterval(const std::string &id, const std::string &minKey, const std::string &maxKey, const long long &maxTimestamp) {
+void TwoD_IT_w_TopK::insertInterval(const std::string &id, const std::string &minKey, const std::string &maxKey, const uint64_t &maxTimestamp) {
 
 std::list<std::string> r;
 split(&r, id, id_delim);

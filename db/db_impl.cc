@@ -1200,15 +1200,95 @@ Status DBImpl::Get(const ReadOptions& options,
     //outputFile<<"in\n";
   }
 
-  /*if (have_stat_update && current->UpdateStats(stats)) {
+  if (have_stat_update && current->UpdateStats(stats)) {
     MaybeScheduleCompaction();
-  }*/
+  }
   mem->Unref();
   if (imm != NULL) imm->Unref();
-  //current->Unref();
+  current->Unref();
   //outputFile.close();
   return s;
 }
+
+
+ Status DBImpl::RangeLookUp(const ReadOptions& options,
+                   const Slice& startSkey, const Slice& endSkey,
+                   std::vector<SKeyReturnVal>* value, int kNoOfOutputs)
+  {
+    //ofstream outputFile;
+    //outputFile.open("/Users/nakshikatha/Desktop/test codes/debug3.txt");
+  Status s;
+  //outputFile<<"innnn\n";
+  MutexLock l(&mutex_);
+  SequenceNumber snapshot;
+  if (options.snapshot != NULL) {
+    snapshot = reinterpret_cast<const SnapshotImpl*>(options.snapshot)->number_;
+  } else {
+    snapshot = versions_->LastSequence();
+  }
+  
+  MemTable* mem = mem_;
+  MemTable* imm = imm_;
+  Version* current = versions_->current();
+  mem->Ref();
+  if (imm != NULL) imm->Ref();
+  current->Ref();
+
+  bool have_stat_update = false;
+  Version::GetStats stats;
+  
+  //outputFile<<"in\n";
+  // Unlock while reading from files and memtables
+  {
+    mutex_.Unlock();
+    // First look in the memtable, then in the immutable memtable (if any).
+    //outputFile<<"in\n";
+    LookupKey startlkey(startSkey, snapshot);
+    LookupKey endlkey(endSkey, snapshot);
+    //outputFile<<"in\n";
+    
+    std::unordered_set<std::string> resultSetofKeysFound;
+    
+    //outputFile<<"memGet\n";
+    mem->RangeLookUp(startlkey, endlkey , value, &s, this->options_.secondaryAtt, &resultSetofKeysFound , kNoOfOutputs, this) ;
+    
+    //if(value->size()>kNoOfOutputs)
+    //std::sort(value->begin(), value->end(), NewestFirst);
+    
+    
+    if(imm != NULL && kNoOfOutputs-value->size()>0) {
+      //outputFile<<"immGet\n";  
+      int memsize = value->size(); 
+      imm->RangeLookUp(startlkey, endlkey , value, &s, this->options_.secondaryAtt, &resultSetofKeysFound , kNoOfOutputs, this) ;
+          //if(value->size()>kNoOfOutputs)
+       // std::sort(value->begin()+memsize, value->end(), NewestFirst);   
+    }  
+    
+    if(kNoOfOutputs>value->size())
+    {
+        //outputFile<<"sstget\n";
+        s = current->RangeLookUp(options, startSkey.ToString(), endSkey.ToString(), value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound, this, snapshot);
+        //outputFile<<"in\n";
+    }
+     
+    
+    std::sort_heap(value->begin(),value->end(),NewestFirst);
+    //outputFile<<"in\n";
+    mutex_.Lock();
+    //outputFile<<"in\n";
+  }
+
+  if (have_stat_update && current->UpdateStats(stats)) {
+    MaybeScheduleCompaction();
+  }
+  mem->Unref();
+  if (imm != NULL) imm->Unref();
+  current->Unref();
+  //outputFile.close();
+  return s;
+}
+
+
 
 Iterator* DBImpl::NewIterator(const ReadOptions& options) {
   SequenceNumber latest_snapshot;
@@ -1581,9 +1661,9 @@ Status DB::Put(const WriteOptions& opt, const Slice& key, const Slice& value) {
   WriteBatch batch;
   batch.Put(key, value);
   ofstream outputFile;
-  outputFile.open("/home/mohiuddin/Desktop/TestDB/debug2.txt" ,std::ofstream::out | std::ofstream::app);
+  //outputFile.open("/home/mohiuddin/Desktop/TestDB/debug2.txt" ,std::ofstream::out | std::ofstream::app);
   
-  outputFile<<key.ToString()<<" -> "<<value.ToString()<<endl;
+  //outputFile<<key.ToString()<<" -> "<<value.ToString()<<endl;
   
   return Write(opt, &batch);
 }
@@ -1610,7 +1690,7 @@ Status DB::Delete(const WriteOptions& opt, const Slice& key) {
   return Write(opt, &batch);
 }
 
-DB::~DB() { }
+DB::~DB() {  }
 
 Status DB::Open(const Options& options, const std::string& dbname,
                 DB** dbptr) {

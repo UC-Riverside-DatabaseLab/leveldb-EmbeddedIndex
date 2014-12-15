@@ -67,7 +67,8 @@ class MemTable {
 
   //Overload Get mothod for returning the list of key,value pairs for query on sec key
   bool Get(const LookupKey& skey, std::vector<SKeyReturnVal>* value, Status* s, std::string secKey, std::unordered_set<std::string>* resultSetofKeysFound, int topKOutput,DBImpl* db);
-
+  bool RangeLookUp(const LookupKey& startSkey, const LookupKey& endSkey, std::vector<SKeyReturnVal>* value, Status* s, 
+            std::string secKey, std::unordered_set<std::string>* resultSetofKeysFound, int topKOutput, DBImpl* db);
   
  private:
   ~MemTable();  // Private since only Unref() should be used to delete it

@@ -77,7 +77,12 @@ class Table {
   Status InternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
                           bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db) ;
+  
+  Status RangeInternalGet(const ReadOptions& options, const Slice& k,
+                          void* arg,
+                          bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db) ;
 
+  
   void ReadMeta(const Footer& footer);
   void ReadFilter(const Slice& filter_handle_value);
   void ReadSecondaryFilter(const Slice& filter_handle_value);

@@ -114,7 +114,10 @@ class DB {
                    const Slice& skey,
                    std::vector<SKeyReturnVal>* value, int kNoOfOutputs) = 0;
 
-  
+  // Lookup range query on secondary key
+  virtual Status RangeLookUp(const ReadOptions& options,
+                   const Slice& startSkey, const Slice& endSkey,
+                   std::vector<SKeyReturnVal>* value, int kNoOfOutputs) = 0;
 
   // Return a heap-allocated iterator over the contents of the database.
   // The result of NewIterator() is initially invalid (caller must

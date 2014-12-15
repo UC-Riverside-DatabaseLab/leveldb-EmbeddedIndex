@@ -36,7 +36,7 @@ TableCache::TableCache(const std::string& dbname,
       dbname_(dbname),
       options_(options),
       cache_(NewLRUCache(entries)) {
-    intervalTree_ = new TwoD_IT_w_TopK(options->IntervalTreeFileName, true);
+    intervalTree_ = new TwoD_IT_w_TopK(dbname+"/"+options->IntervalTreeFileName, true);
 }
 
 TableCache::~TableCache() {
@@ -138,7 +138,22 @@ Status TableCache::Get(const ReadOptions& options,
   return s;
 }
 
-
+Status TableCache::RangeLookUp(const ReadOptions& options,
+                       uint64_t file_number,
+                       uint64_t file_size,
+                      const Slice& blockKey,
+                       void* arg,
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
+                       string secKey,int topKOutput,DBImpl* db) {
+  Cache::Handle* handle = NULL;
+  Status s = FindTable(file_number, file_size, &handle);
+  if (s.ok()) {
+    Table* t = reinterpret_cast<TableAndFile*>(cache_->Value(handle))->table;
+    s = t->RangeInternalGet(options, blockKey, arg, saver ,secKey, topKOutput, db);
+    cache_->Release(handle);
+  }
+  return s;
+}
 void TableCache::Evict(uint64_t file_number) {
   char buf[sizeof(file_number)];
   EncodeFixed64(buf, file_number);

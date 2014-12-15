@@ -69,7 +69,7 @@ struct TableBuilder::Rep {
                      : new FilterBlockBuilder(opt.filter_policy)),
         maxSecValue(""),
         minSecValue(""),
-        maxSecSeqNumber(-1),     
+        maxSecSeqNumber(0),     
         pending_index_entry(false) {
     index_block_options.block_restart_interval = 1;
    
@@ -114,7 +114,7 @@ Status TableBuilder::ChangeOptions(const Options& options) {
 
 void TableBuilder::Add(const Slice& key, const Slice& value) {
     std::ofstream outputFile;
-    outputFile.open("/Users/nakshikatha/Desktop/test codes/add.txt",std::ofstream::out | std::ofstream::app);
+    outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
     //outputFile<<"inside Add\n";
   Rep* r = rep_;
   assert(!r->closed);
@@ -132,8 +132,11 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     r->pending_index_entry = false;
     // Insert in the interval tree the new blocks info
     
-    intervalTree_->insertInterval(SSTR(fileNumber)+r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
-    
+    intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+    outputFile<<SSTR(fileNumber)+"+"+r->last_key <<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
+    rep_->minSecValue= "";
+    rep_->maxSecValue= "";
+    rep_->maxSecSeqNumber= 0;
   }
 
   if (r->filter_block != NULL) {
@@ -204,17 +207,29 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
       rep_->maxSecValue = sKey.str();
   }
   
-  if(rep_->minSecValue.compare(sKey.str())>0)
+  if(rep_->minSecValue== "" || rep_->minSecValue.compare(sKey.str())>0)
   {
-      rep_->maxSecValue = sKey.str();
+      rep_->minSecValue = sKey.str();
   }
-  ParsedInternalKey parsed_key;
+  
+  const size_t n = key.size();
+  if (n >= 8)  
+  {
+      uint64_t num = DecodeFixed64(key.data() + n - 8);
+      SequenceNumber seq  = num >> 8;
+      if(rep_->maxSecSeqNumber < seq)
+        {
+            rep_->maxSecSeqNumber = seq;
+        }
+  }
+      
+  /*ParsedInternalKey parsed_key;
   if (!ParseInternalKey(key, &parsed_key)) {
     if(rep_->maxSecSeqNumber < parsed_key.sequence)
     {
         rep_->maxSecSeqNumber = parsed_key.sequence;
     }
-  }
+  }*/
   
 }
   
@@ -354,15 +369,23 @@ Status TableBuilder::Finish() {
   // Write index block
   if (ok()) {
     if (r->pending_index_entry) {
-      r->options.comparator->FindShortSuccessor(&r->last_key);
+      std::ofstream outputFile;
+      outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
+ 
+      outputFile<<r->last_key<<std::endl;
+      //r->options.comparator->FindShortSuccessor(&r->last_key);
       std::string handle_encoding;
       r->pending_handle.EncodeTo(&handle_encoding);
       r->index_block.Add(r->last_key, Slice(handle_encoding));
       r->pending_index_entry = false;
       
       
-      intervalTree_->insertInterval(SSTR(fileNumber) + r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
-    
+      intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+      
+      outputFile<<SSTR(fileNumber)+"+"+r->last_key <<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
+        rep_->minSecValue= "";
+        rep_->maxSecValue= "";
+        rep_->maxSecSeqNumber= 0;
     }
     WriteBlock(&r->index_block, &index_block_handle);
   }

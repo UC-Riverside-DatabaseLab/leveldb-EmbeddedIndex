@@ -148,7 +148,8 @@ bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
   return false;
 }
 
-bool MemTable::Get(const LookupKey& skey, std::vector<SKeyReturnVal>* value, Status* s, string secKey,std::unordered_set<std::string>* resultSetofKeysFound, int topKOutput, DBImpl* db){
+bool MemTable::Get(const LookupKey& skey, std::vector<SKeyReturnVal>* value, Status* s, string secKey,std::unordered_set<std::string>* resultSetofKeysFound, int topKOutput, DBImpl* db)
+{
    if(secKey.empty()) 
         return false;
    //ofstream outputFile;
@@ -243,6 +244,170 @@ bool MemTable::Get(const LookupKey& skey, std::vector<SKeyReturnVal>* value, Sta
           if (comparator_.comparator.user_comparator()->Compare(
             Key,
             skey.user_key()) == 0) {
+            struct SKeyReturnVal newVal;
+            newVal.key = Slice(key_ptr, key_length - 8).ToString();
+            std::string temp;
+            
+            if(resultSetofKeysFound->find(newVal.key)==resultSetofKeysFound->end())
+            {
+            
+                //db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                //char *d2;
+                //d2 = new char[val.size()+1];
+                //std::strcpy(d2,val.c_str());
+                //char *d2;
+                //d2 = new char[v.size()+1];
+                //memcpy(d2,v.data(),v.size());
+                //d2[v.size()]='/0';
+                newVal.value = val;//Slice(d2);
+                newVal.sequence_number = tag;
+                
+                 
+
+                if(value->size()<topKOutput)
+                {
+                    Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                    if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                    {
+                        newVal.Push(value, newVal);
+                        resultSetofKeysFound->insert(newVal.key);
+                    }
+                }
+                else if(newVal.sequence_number>value->front().sequence_number)
+                {
+                    Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                    if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                    {
+                        newVal.Pop(value);
+                        newVal.Push(value,newVal);
+                        resultSetofKeysFound->insert(newVal.key);
+                        resultSetofKeysFound->erase(resultSetofKeysFound->find(value->front().key));
+                    }
+                }
+                //value->push_back(newVal);
+                //kNoOfOutputs--;
+
+                //outputFile<<key<<"\nfound"<<endl;
+                found = true;
+                
+            }
+            
+          }
+          
+          
+          
+        }
+        //To Do handle deleted entries
+        /*case kTypeDeletion:
+          *s = Status::NotFound(Slice());
+          return true;*/
+      }
+      //if(kNoOfOutputs<=0)
+         //break;
+      iter.Next();   
+  }
+  return found;
+  
+ }
+bool MemTable::RangeLookUp(const LookupKey& startSkey, const LookupKey& endSkey, std::vector<SKeyReturnVal>* value, Status* s, 
+            std::string secKey, std::unordered_set<std::string>* resultSetofKeysFound, int topKOutput, DBImpl* db)
+{
+   if(secKey.empty()) 
+        return false;
+   //ofstream outputFile;
+   //outputFile.open("/home/mohiuddin/Desktop/TestDB/debug.txt");
+  //Slice memkey = skey.memtable_key();
+  //outputFile<<
+  Table::Iterator iter(&table_);
+  iter.SeekToFirst();
+  bool found = false;
+  
+  //outputFile<<"in\n";
+  
+  while (iter.Valid()) {
+      
+    const char* entry = iter.key();
+    uint32_t key_length;
+    const char* key_ptr = GetVarint32Ptr(entry, entry+5, &key_length);
+    /*if (comparator_.comparator.user_comparator()->Compare(
+            Slice(key_ptr, key_length - 8),
+            skey.user_key()) == 0) {
+      // Correct user key
+     * */
+    
+      const uint64_t tag = DecodeFixed64(key_ptr + key_length - 8);
+      std::string val;
+      //outputFile<<"in\n"<<tag<<endl;
+      switch (static_cast<ValueType>(tag & 0xff)) {
+          
+        case kTypeValue: {
+             
+          Slice v = GetLengthPrefixedSlice(key_ptr + key_length);
+           
+          val.assign(v.data(), v.size());
+          //outputFile<<"in\n"<<val<<endl;
+          //parse the Json Object
+            
+          
+            rapidjson::Document docToParse; 
+
+            docToParse.Parse<0>(val.c_str());   
+
+            ///
+            const char* sKeyAtt = secKey.c_str();
+
+            if(!docToParse.IsObject()||!docToParse.HasMember(sKeyAtt)||docToParse[sKeyAtt].IsNull())
+                return false;
+
+            std::ostringstream key;
+            if(docToParse[sKeyAtt].IsNumber())
+            {
+                  if(docToParse[sKeyAtt].IsUint64())
+                  {
+                      unsigned long long int tid = docToParse[sKeyAtt].GetUint64();
+                      key<<tid;
+
+                  }
+                  else if (docToParse[sKeyAtt].IsInt64())
+                  {
+                      long long int tid = docToParse[sKeyAtt].GetInt64();
+                      key<<tid;
+                  }
+                  else if (docToParse[sKeyAtt].IsDouble())
+                  {
+                      double tid = docToParse[sKeyAtt].GetDouble();
+                      key<<tid;
+                  }
+
+                  else if (docToParse[sKeyAtt].IsUint())
+                  {
+                      unsigned int tid = docToParse[sKeyAtt].GetUint();
+                      key<<tid;
+                  }
+                  else if (docToParse[sKeyAtt].IsInt())
+                  {
+                      int tid = docToParse[sKeyAtt].GetInt();
+                      key<<tid;             
+                  }
+            }
+            else if (docToParse[sKeyAtt].IsString())
+            {
+                  const char* tid = docToParse[sKeyAtt].GetString();
+                  key<<tid;
+            }
+            else if(docToParse[sKeyAtt].IsBool())
+            {
+                  bool tid = docToParse[sKeyAtt].GetBool();
+                  key<<tid;
+            }
+            
+            Slice Key = key.str();
+            //outputFile<<key.str()<<endl<<val<<endl;
+           if (comparator_.comparator.user_comparator()->Compare(
+            Key,
+            startSkey.user_key()) >= 0 && comparator_.comparator.user_comparator()->Compare(
+            Key,
+            endSkey.user_key()) <= 0) {
             struct SKeyReturnVal newVal;
             newVal.key = Slice(key_ptr, key_length - 8).ToString();
             std::string temp;

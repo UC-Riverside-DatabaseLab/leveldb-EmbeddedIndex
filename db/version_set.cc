@@ -8,7 +8,6 @@
 #include <cstring>
 #include <algorithm>
 #include <stdio.h>
-#include <unordered_set>
 #include "db/filename.h"
 #include "db/log_reader.h"
 #include "db/log_writer.h"
@@ -21,7 +20,8 @@
 #include "util/coding.h"
 #include "util/logging.h"
 #include "rapidjson/document.h"
-
+#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
 namespace leveldb {
 
 static const int kTargetFileSize = 2 * 1048576;
@@ -280,6 +280,14 @@ struct SecSaver {
   std::vector<SKeyReturnVal>* value;
   std::unordered_set<std::string>* resultSetofKeysFound;
 };
+struct RangeSecSaver {
+  SaverState state;
+  const Comparator* ucmp;
+  Slice start_user_key;
+  Slice end_user_key;
+  std::vector<SKeyReturnVal>* value;
+  std::unordered_set<std::string>* resultSetofKeysFound;
+};
 }
 static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
   Saver* s = reinterpret_cast<Saver*>(arg);
@@ -418,6 +426,160 @@ static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string se
             
             newVal.sequence_number = parsed_key.sequence;
             std::string temp;
+            //s->value->push_back(newVal); 
+            if(s->value->size()<topKOutput)
+            {
+                Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                {
+                        newVal.Push(s->value, newVal);
+                        s->resultSetofKeysFound->insert(ukey.ToString());
+                }
+            }
+            else if(newVal.sequence_number>s->value->front().sequence_number)
+            {
+                Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                {
+                    newVal.Pop(s->value);
+                    newVal.Push(s->value,newVal);
+                    s->resultSetofKeysFound->insert(ukey.ToString());
+                    s->resultSetofKeysFound->erase(s->resultSetofKeysFound->find(s->value->front().key));
+                }
+            }
+            
+            return true;
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, string secKey, int topKOutput, DBImpl* db) {
+    
+  ofstream outputFile;
+  outputFile.open("./debug3.txt" ,std::ofstream::out | std::ofstream::app);
+      
+ 
+  RangeSecSaver* s = reinterpret_cast<RangeSecSaver*>(arg);
+             
+  ParsedInternalKey parsed_key;
+  if (!ParseInternalKey(ikey, &parsed_key)) {
+    s->state = kCorrupt;
+  } else {
+      
+        std:string val;
+        val.assign(v.data(), v.size());
+                
+        //parse the Json Object
+
+        rapidjson::Document docToParse; 
+
+        docToParse.Parse<0>(val.c_str());   
+
+        ///
+        const char* sKeyAtt = secKey.c_str();
+
+        if(!docToParse.IsObject()||!docToParse.HasMember(sKeyAtt)||docToParse[sKeyAtt].IsNull())
+            return false;
+
+        std::ostringstream key;
+        if(docToParse[sKeyAtt].IsNumber())
+        {
+              if(docToParse[sKeyAtt].IsUint64())
+              {
+                  unsigned long long int tid = docToParse[sKeyAtt].GetUint64();
+                  key<<tid;
+
+              }
+              else if (docToParse[sKeyAtt].IsInt64())
+              {
+                  long long int tid = docToParse[sKeyAtt].GetInt64();
+                  key<<tid;
+              }
+              else if (docToParse[sKeyAtt].IsDouble())
+              {
+                  double tid = docToParse[sKeyAtt].GetDouble();
+                  key<<tid;
+              }
+
+              else if (docToParse[sKeyAtt].IsUint())
+              {
+                  unsigned int tid = docToParse[sKeyAtt].GetUint();
+                  key<<tid;
+              }
+              else if (docToParse[sKeyAtt].IsInt())
+              {
+                  int tid = docToParse[sKeyAtt].GetInt();
+                  key<<tid;             
+              }
+        }
+        else if (docToParse[sKeyAtt].IsString())
+        {
+              const char* tid = docToParse[sKeyAtt].GetString();
+              key<<tid;
+        }
+        else if(docToParse[sKeyAtt].IsBool())
+        {
+              bool tid = docToParse[sKeyAtt].GetBool();
+              key<<tid;
+        }
+
+        Slice Key = key.str();
+
+        outputFile<<"skey: "<<  key.str() <<" S: "<< s->start_user_key.ToString() <<" E: "<< s->end_user_key.ToString() <<std::endl;
+        
+    if (s->ucmp->Compare(Key, s->start_user_key) >= 0 && s->ucmp->Compare(Key, s->end_user_key) <= 0) {
+        
+        outputFile<< " value Found: "<< val << std::endl;
+      s->state = (parsed_key.type == kTypeValue) ? kFound : kDeleted;
+      if (s->state == kFound) {
+        
+        struct SKeyReturnVal newVal;
+        Slice ukey = ExtractUserKey(ikey);
+        
+        //outputFile<<ikey.ToString()<<ukey.ToString()<<endl<<val<<endl;
+        if(s->resultSetofKeysFound->find(ukey.ToString())== s->resultSetofKeysFound->end())
+        {
+         
+            //const char* p = ukey.data();
+
+            //char *d;
+            /*
+            if(ikey.size()-7>0)
+            {
+                d = new char[ikey.size()-6];
+                memcpy( d, p, ikey.size()-7 );
+                d[ikey.size()-7] = '\0';
+                //std::strcpy(d,p);
+
+                newVal.key = Slice(d);
+            }*/
+
+            //d = new char[ukey.size()+1];
+            //memcpy( d, p, ukey.size() );
+            //d[ukey.size()] = '\0';
+                //std::strcpy(d,p);
+            newVal.key = ukey.ToString();//Slice(d);
+            //char *d2;
+            //d2 = new char[val.size()+1];
+            //const char *t = val.c_str();
+            //memcpy( d2, t, val.size());
+            //d2[val.size()] = '\0';
+            //std::strcpy(d2,val.c_str());
+
+            //Slice(block_iter->key().data(),block_iter->key().size());//entry;
+            newVal.value = val;//Slice(d2); 
+            //const char* entry = ikey.data();
+            
+            //newVal.value = Slice(d2);
+            
+            
+            
+            newVal.sequence_number = parsed_key.sequence;
+            std::string temp;
+            outputFile<< " value Found: "<< val << std::endl;
             //s->value->push_back(newVal); 
             if(s->value->size()<topKOutput)
             {
@@ -727,6 +889,123 @@ Status Version::Get(const ReadOptions& options,
       return s;
 }
 
+
+  Status Version::RangeLookUp(const ReadOptions& options,
+                     std::string startk,
+                     std::string endk,
+                    std::vector<SKeyReturnVal>* value,
+                    GetStats* stats,string secKey, int kNoOfOutputs,std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot) {
+    
+    ofstream outputFile;
+    outputFile.open("./debug2.txt" ,std::ofstream::out | std::ofstream::app);
+    
+    //outputFile<<"in\n";
+    const Comparator* ucmp = vset_->icmp_.user_comparator();
+    Status s;
+
+    stats->seek_file = NULL;
+    stats->seek_file_level = -1;
+    FileMetaData* last_file_read = NULL;
+    int last_file_read_level = -1;
+   
+  
+    std::map< std::string ,  FileMetaData*> filenoToMetaMap;
+
+
+    FileMetaData* tmp2;
+    int valueSize = 0;
+  
+    for (int level = 0; level < config::kNumLevels; level++) 
+    {
+        size_t num_files = files_[level].size();
+
+         
+        for (uint32_t i = 0; i < num_files; ++i) {
+            
+            filenoToMetaMap.insert(std::pair<std::string,FileMetaData*>(SSTR(files_[level][i]->number) , files_[level][i]));
+        }
+    }  
+      
+   
+      
+    std::vector<TwoD_Interval> intervals;
+    TwoD_IT_w_TopK* itree = this->vset_->table_cache_->getIntervalTree();
+    itree->topK(&intervals, startk, endk, kNoOfOutputs);
+    
+ 
+    
+    for(std::vector<TwoD_Interval>::const_iterator it = intervals.begin(); it != intervals.end(); it++) {
+    
+        
+          
+          if(value->size()>=kNoOfOutputs && value->front().sequence_number > it->GetMaxTimeStamp()){
+             
+            return s;
+        }
+        
+        std::stringstream ss(it->GetId());
+        std::string item1, item2;
+
+        std::list<std::string> elems;
+        std::getline(ss, item1, '+');
+        elems.push_back(item1);
+
+        std::getline(ss, item2);
+        elems.push_back(item2);
+        
+        outputFile<<"("<<it->GetId()<<", "<<it->GetLowPoint()<<", "<<it->GetHighPoint()<<", "<<it->GetMaxTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
+
+       
+        std::map<string,FileMetaData*>::iterator itf; 
+        //outputFile<<"("<<it->GetId()<<", "<<it->GetLowPoint()<<", "<<it->GetHighPoint()<<", "<<it->GetMaxTimeStamp()<<" )"<<elems.front()<<std::endl;
+        
+        itf = filenoToMetaMap.find(elems.front());
+        if(itf == filenoToMetaMap.end())
+            continue;
+        
+       
+        FileMetaData* f = itf->second;
+        
+        /*
+         if (last_file_read != NULL && stats->seek_file == NULL) {
+          // We have had more than one seek for this read.  Charge the 1st file.
+          stats->seek_file = last_file_read;
+          stats->seek_file_level = last_file_read_level;
+        }
+        
+        
+        last_file_read = f;
+        last_file_read_level = level;
+        */
+      outputFile<<elems.back()<<" \n";  
+      //LookupKey blockkey(elems.back(), snapshot);  
+      RangeSecSaver saver;
+      saver.state = kNotFound;
+      saver.ucmp = ucmp;
+      saver.start_user_key = startk;
+      saver.end_user_key = endk;
+      saver.value = value;
+      saver.resultSetofKeysFound = resultSetofKeysFound;
+      s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, elems.back(), 
+                                   &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
+      
+     
+      
+    }
+    
+ 
+    if(value->size()==0)
+        return Status::NotFound(Slice());  // Use an empty error message for speed
+    else
+      return s;
+ 
+  
+      
+ 
+      
+  }
+ 
+ 
 
 
 
@@ -1772,8 +2051,9 @@ void Compaction::AddInputDeletions(VersionEdit* edit) {
     for (size_t i = 0; i < inputs_[which].size(); i++) {
       edit->DeleteFile(level_ + which, inputs_[which][i]->number);
       
-      //TwoD_IT_w_TopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
-      //itree->deleteAllIntervals(inputs_[which][i]->number);
+      TwoD_IT_w_TopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
+      itree->deleteAllIntervals(SSTR(inputs_[which][i]->number));
+      itree->sync();
     }
   }
 }

@@ -78,6 +78,11 @@ class Version {
                     const LookupKey& k,
                     std::vector<SKeyReturnVal>* value,
                     GetStats* stats,string secKey, int kNoOfOutputs,std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db);
+  Status RangeLookUp(const ReadOptions& options,
+                    const std::string startk,
+                    const std::string endk,
+                    std::vector<SKeyReturnVal>* value,
+                    GetStats* stats,string secKey, int kNoOfOutputs,std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot);
   // Adds "stats" into the current state.  Returns true if a new
   // compaction may need to be triggered, false otherwise.
   // REQUIRES: lock is held

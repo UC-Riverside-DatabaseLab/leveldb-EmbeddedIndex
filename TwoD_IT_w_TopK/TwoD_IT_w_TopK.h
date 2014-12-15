@@ -13,13 +13,13 @@
 class TwoD_Interval {
 public:
   TwoD_Interval() {};
-  TwoD_Interval(const std::string id, const std::string low, const std::string high, const long long max_timestamp)
+  TwoD_Interval(const std::string id, const std::string low, const std::string high, const uint64_t max_timestamp)
     : _id(id), _low(low), _high(high), _max_timestamp(max_timestamp) {};
   
   std::string GetId() const {return _id;};
   std::string GetLowPoint() const {return _low;};
   std::string GetHighPoint() const {return _high;};
-  long long GetMaxTimeStamp() const {return _max_timestamp;};
+  uint64_t GetMaxTimeStamp() const {return _max_timestamp;};
   
   bool operator == (const TwoD_Interval& otherInterval)
     const {return (_id == otherInterval._id);}
@@ -36,7 +36,7 @@ protected:
   std::string _id;
   std::string _low;
   std::string _high;
-  long long _max_timestamp;
+  uint64_t _max_timestamp;
 };
 
 
@@ -47,7 +47,7 @@ public:
   TwoD_IT_w_TopK(const std::string &filename, const bool &sync_from_file);
   ~TwoD_IT_w_TopK();
 
-  void insertInterval(const std::string &id, const std::string &minKey, const std::string &maxKey, const long long &maxTimestamp);
+  void insertInterval(const std::string &id, const std::string &minKey, const std::string &maxKey, const uint64_t &maxTimestamp);
   
   void deleteInterval(const std::string &id);
   void deleteAllIntervals(const std::string &id_prefix);
