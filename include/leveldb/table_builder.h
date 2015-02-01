@@ -29,7 +29,7 @@ class TableBuilder {
   // Create a builder that will store the contents of the table it is
   // building in *file.  Does not close the file.  It is up to the
   // caller to close the file after calling Finish().
-  TableBuilder(const Options& options, WritableFile* file, TwoD_IT_w_TopK* intervalTree, uint64_t fileNumber);
+  TableBuilder(const Options& options, WritableFile* file, TwoDITwTopK* intervalTree, uint64_t fileNumber);
 
   // REQUIRES: Either Finish() or Abandon() has been called.
   ~TableBuilder();
@@ -83,7 +83,7 @@ class TableBuilder {
   struct Rep;
   Rep* rep_;
   
-  TwoD_IT_w_TopK* intervalTree_;
+  TwoDITwTopK* intervalTree_;
   uint64_t fileNumber;
   // No copying allowed
   TableBuilder(const TableBuilder&);

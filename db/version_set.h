@@ -24,6 +24,7 @@
 #include "port/port.h"
 #include "port/thread_annotations.h"
 #include "db_impl.h"
+#include <list>
 
 namespace leveldb {
 

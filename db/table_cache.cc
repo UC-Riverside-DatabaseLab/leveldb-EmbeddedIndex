@@ -36,7 +36,7 @@ TableCache::TableCache(const std::string& dbname,
       dbname_(dbname),
       options_(options),
       cache_(NewLRUCache(entries)) {
-    intervalTree_ = new TwoD_IT_w_TopK(dbname+"/"+options->IntervalTreeFileName, true);
+    intervalTree_ = new TwoDITwTopK(dbname+"/"+options->IntervalTreeFileName, true);
 }
 
 TableCache::~TableCache() {

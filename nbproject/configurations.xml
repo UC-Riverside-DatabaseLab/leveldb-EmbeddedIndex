@@ -37,7 +37,6 @@
       </df>
       <df name="TwoD_IT_w_TopK">
         <in>TwoD_IT_w_TopK.cc</in>
-        <in>example.cc</in>
       </df>
       <df name="util">
         <in>arena.cc</in>
@@ -96,8 +95,6 @@
         </makeTool>
       </makefileType>
       <item path="TwoD_IT_w_TopK/TwoD_IT_w_TopK.cc" ex="false" tool="1" flavor2="8">
-      </item>
-      <item path="TwoD_IT_w_TopK/example.cc" ex="false" tool="1" flavor2="8">
       </item>
       <item path="db/builder.cc" ex="false" tool="1" flavor2="8">
       </item>

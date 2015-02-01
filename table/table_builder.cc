@@ -76,7 +76,7 @@ struct TableBuilder::Rep {
   }
 };
 
-TableBuilder::TableBuilder(const Options& options, WritableFile* file, TwoD_IT_w_TopK* intervalTree, uint64_t fileN)
+TableBuilder::TableBuilder(const Options& options, WritableFile* file, TwoDITwTopK* intervalTree, uint64_t fileN)
     : rep_(new Rep(options, file)) {
   if (rep_->filter_block != NULL) {
     rep_->filter_block->StartBlock(0);
@@ -113,8 +113,8 @@ Status TableBuilder::ChangeOptions(const Options& options) {
 }
 
 void TableBuilder::Add(const Slice& key, const Slice& value) {
-    std::ofstream outputFile;
-    outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
+    //std::ofstream outputFile;
+    //outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
     //outputFile<<"inside Add\n";
   Rep* r = rep_;
   assert(!r->closed);
@@ -132,8 +132,8 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     r->pending_index_entry = false;
     // Insert in the interval tree the new blocks info
     
-    intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
-    outputFile<<SSTR(fileNumber)+"+"+r->last_key <<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
+    intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+    //outputFile<<SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ) <<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
     rep_->minSecValue= "";
     rep_->maxSecValue= "";
     rep_->maxSecSeqNumber= 0;
@@ -369,10 +369,10 @@ Status TableBuilder::Finish() {
   // Write index block
   if (ok()) {
     if (r->pending_index_entry) {
-      std::ofstream outputFile;
-      outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
+      //std::ofstream outputFile;
+      //outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
  
-      outputFile<<r->last_key<<std::endl;
+      //outputFile<<r->last_key<<std::endl;
       //r->options.comparator->FindShortSuccessor(&r->last_key);
       std::string handle_encoding;
       r->pending_handle.EncodeTo(&handle_encoding);
@@ -380,9 +380,9 @@ Status TableBuilder::Finish() {
       r->pending_index_entry = false;
       
       
-      intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key, rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+      intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
       
-      outputFile<<SSTR(fileNumber)+"+"+r->last_key <<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
+      //outputFile<<SSTR(fileNumber)+"+"+ r->last_key.substr(0, r->last_key.size() - 8 )<<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
         rep_->minSecValue= "";
         rep_->maxSecValue= "";
         rep_->maxSecSeqNumber= 0;

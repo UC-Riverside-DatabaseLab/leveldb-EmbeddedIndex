@@ -9,22 +9,6 @@
     </data>
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
-        <group>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/include/leveldb/options.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/table/table.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/db_impl.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/memtable.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/db_impl.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/include/leveldb/table_builder.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/version_set.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/table_cache.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/include/leveldb/table.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/memtable.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/table/table_builder.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/table_cache.h</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/table/block_builder.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/version_set.cc</file>
-            <file>file:/home/mohiuddin/Desktop/LevelDB_project/LevelDB-Embedded-Secondary-Index/db/repair.cc</file>
-        </group>
+        <group/>
     </open-files>
 </project-private>

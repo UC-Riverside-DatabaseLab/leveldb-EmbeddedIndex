@@ -61,6 +61,11 @@
         </df>
       </df>
       <df name="include">
+        <df name="cpp-btree">
+          <in>btree.h</in>
+          <in>btree_container.h</in>
+          <in>btree_map.h</in>
+        </df>
         <df name="leveldb">
           <in>c.h</in>
           <in>cache.h</in>
@@ -129,7 +134,6 @@
       <df name="TwoD_IT_w_TopK">
         <in>TwoD_IT_w_TopK.cc</in>
         <in>TwoD_IT_w_TopK.h</in>
-        <in>example.cc</in>
       </df>
       <df name="util">
         <in>arena.cc</in>

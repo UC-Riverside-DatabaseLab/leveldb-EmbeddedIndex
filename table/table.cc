@@ -379,9 +379,9 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
 Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
                           bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
-    ofstream outputFile;
-    outputFile.open("./debug.txt");
-    outputFile<<k.ToString()<<"\n\nStart:\n\n";
+    //ofstream outputFile;
+    //outputFile.open("./debug.txt");
+    //outputFile<<k.ToString()<<"\n\nStart:\n\n";
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
   iiter->Seek(k);
@@ -389,7 +389,7 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
   //outputFile<<"in2\n";
  
   if (iiter->Valid()) {
-    outputFile<<"in\n";
+    //outputFile<<"in\n";
     Slice handle_value = iiter->value();
     FilterBlockReader* filter = rep_->filter;
     BlockHandle handle;
@@ -398,11 +398,11 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
         !filter->KeyMayMatch(handle.offset(), k)) {
       // Not found
     } else {
-      outputFile<<"in\n";
+      //outputFile<<"in\n";
       Iterator* block_iter = BlockReader(this, options, iiter->value());
       block_iter->SeekToFirst();
       while(block_iter->Valid()) {
-        outputFile<<"in\n"; 
+        //outputFile<<"in\n"; 
         bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
         block_iter->Next();
       }

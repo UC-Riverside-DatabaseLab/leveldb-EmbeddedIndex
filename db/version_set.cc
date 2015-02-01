@@ -458,8 +458,8 @@ static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string se
 }
 static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, string secKey, int topKOutput, DBImpl* db) {
     
-  ofstream outputFile;
-  outputFile.open("./debug3.txt" ,std::ofstream::out | std::ofstream::app);
+  //ofstream outputFile;
+  //outputFile.open("./debug3.txt" ,std::ofstream::out | std::ofstream::app);
       
  
   RangeSecSaver* s = reinterpret_cast<RangeSecSaver*>(arg);
@@ -528,11 +528,11 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
 
         Slice Key = key.str();
 
-        outputFile<<"skey: "<<  key.str() <<" S: "<< s->start_user_key.ToString() <<" E: "<< s->end_user_key.ToString() <<std::endl;
+        //outputFile<<"skey: "<<  key.str() <<" S: "<< s->start_user_key.ToString() <<" E: "<< s->end_user_key.ToString() <<std::endl;
         
     if (s->ucmp->Compare(Key, s->start_user_key) >= 0 && s->ucmp->Compare(Key, s->end_user_key) <= 0) {
         
-        outputFile<< " value Found: "<< val << std::endl;
+        //outputFile<< " value Found: "<< val << std::endl;
       s->state = (parsed_key.type == kTypeValue) ? kFound : kDeleted;
       if (s->state == kFound) {
         
@@ -579,7 +579,7 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
             
             newVal.sequence_number = parsed_key.sequence;
             std::string temp;
-            outputFile<< " value Found: "<< val << std::endl;
+            //outputFile<< " value Found: "<< val << std::endl;
             //s->value->push_back(newVal); 
             if(s->value->size()<topKOutput)
             {
@@ -894,10 +894,10 @@ Status Version::Get(const ReadOptions& options,
                      std::string startk,
                      std::string endk,
                     std::vector<SKeyReturnVal>* value,
-                    GetStats* stats,string secKey, int kNoOfOutputs,std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot) {
+                    GetStats* stats,string secKey, int kNoOfOutputs, std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot) {
     
-    ofstream outputFile;
-    outputFile.open("./debug2.txt" ,std::ofstream::out | std::ofstream::app);
+    //ofstream outputFile;
+    //outputFile.open("./debug2.txt" ,std::ofstream::out | std::ofstream::app);
     
     //outputFile<<"in\n";
     const Comparator* ucmp = vset_->icmp_.user_comparator();
@@ -928,22 +928,24 @@ Status Version::Get(const ReadOptions& options,
       
    
       
-    std::vector<TwoD_Interval> intervals;
-    TwoD_IT_w_TopK* itree = this->vset_->table_cache_->getIntervalTree();
-    itree->topK(&intervals, startk, endk, kNoOfOutputs);
+   //std::vector<TwoDInterval> intervals;
+    TwoDITwTopK* itree = this->vset_->table_cache_->getIntervalTree();
     
- 
-    
-    for(std::vector<TwoD_Interval>::const_iterator it = intervals.begin(); it != intervals.end(); it++) {
-    
-        
+    TwoDInterval interval;
+    TopKIterator it(*itree, interval, startk, endk); // Locks a for inserts, deletes and iteration by other iterators
+    // Top 2 intervals:
+    int index = 0;
+    while(it.next()) 
+    {
+         if (index++ > kNoOfOutputs)
+            break;  
           
-          if(value->size()>=kNoOfOutputs && value->front().sequence_number > it->GetMaxTimeStamp()){
+          if(value->size()>=kNoOfOutputs && value->front().sequence_number > interval.GetTimeStamp()){
              
             return s;
         }
         
-        std::stringstream ss(it->GetId());
+        std::stringstream ss(interval.GetId());
         std::string item1, item2;
 
         std::list<std::string> elems;
@@ -953,7 +955,7 @@ Status Version::Get(const ReadOptions& options,
         std::getline(ss, item2);
         elems.push_back(item2);
         
-        outputFile<<"("<<it->GetId()<<", "<<it->GetLowPoint()<<", "<<it->GetHighPoint()<<", "<<it->GetMaxTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
+        //outputFile<<"("<<interval->GetId()<<", "<<interval->GetLowPoint()<<", "<<interval->GetHighPoint()<<", "<<interval->GetTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
 
        
         std::map<string,FileMetaData*>::iterator itf; 
@@ -966,19 +968,9 @@ Status Version::Get(const ReadOptions& options,
        
         FileMetaData* f = itf->second;
         
-        /*
-         if (last_file_read != NULL && stats->seek_file == NULL) {
-          // We have had more than one seek for this read.  Charge the 1st file.
-          stats->seek_file = last_file_read;
-          stats->seek_file_level = last_file_read_level;
-        }
-        
-        
-        last_file_read = f;
-        last_file_read_level = level;
-        */
-      outputFile<<elems.back()<<" \n";  
-      //LookupKey blockkey(elems.back(), snapshot);  
+       
+      //outputFile<<elems.back()<<" \n";  
+      LookupKey blockkey(elems.back(), snapshot);  
       RangeSecSaver saver;
       saver.state = kNotFound;
       saver.ucmp = ucmp;
@@ -986,14 +978,54 @@ Status Version::Get(const ReadOptions& options,
       saver.end_user_key = endk;
       saver.value = value;
       saver.resultSetofKeysFound = resultSetofKeysFound;
-      s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, elems.back(), 
+      s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, blockkey.internal_key(), 
                                    &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
       
      
-      
+        
+     
+        
+        
+
     }
+    it.stop();
     
- 
+    
+    /*
+    std::vector<TwoDInterval> intervals;
+    itree->topK(intervals, startk, endk, (uint32_t)kNoOfOutputs);
+    
+    for(std::vector<TwoDInterval>::const_iterator it = intervals.begin(); it != intervals.end(); it++) {
+    if(value->size()>=kNoOfOutputs && value->front().sequence_number > it->GetTimeStamp()){
+    return s;
+    }
+    std::stringstream ss(it->GetId());
+    std::string item1, item2;
+    std::list<std::string> elems;
+    std::getline(ss, item1, '+');
+    elems.push_back(item1);
+    std::getline(ss, item2);
+    elems.push_back(item2);
+//    outputFile<<"("<<it->GetId()<<", "<<it->GetLowPoint()<<", "<<it->GetHighPoint()<<", "<<it->GetMaxTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
+    std::map<string,FileMetaData*>::iterator itf;
+    //outputFile<<"("<<it->GetId()<<", "<<it->GetLowPoint()<<", "<<it->GetHighPoint()<<", "<<it->GetMaxTimeStamp()<<" )"<<elems.front()<<std::endl;
+    itf = filenoToMetaMap.find(elems.front());
+    if(itf == filenoToMetaMap.end())
+    continue;
+    FileMetaData* f = itf->second;
+    
+    RangeSecSaver saver;
+    saver.state = kNotFound;
+    saver.ucmp = ucmp;
+    saver.start_user_key = startk;
+    saver.end_user_key = endk;
+    saver.value = value;
+    saver.resultSetofKeysFound = resultSetofKeysFound;
+    s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, elems.back(),
+    &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
+   }
+
+ */
     if(value->size()==0)
         return Status::NotFound(Slice());  // Use an empty error message for speed
     else
@@ -2051,7 +2083,7 @@ void Compaction::AddInputDeletions(VersionEdit* edit) {
     for (size_t i = 0; i < inputs_[which].size(); i++) {
       edit->DeleteFile(level_ + which, inputs_[which][i]->number);
       
-      TwoD_IT_w_TopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
+      TwoDITwTopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
       itree->deleteAllIntervals(SSTR(inputs_[which][i]->number));
       itree->sync();
     }

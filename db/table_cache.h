@@ -64,7 +64,7 @@ Status RangeLookUp(const ReadOptions& options,
 
   // Evict any entry for the specified file number
   void Evict(uint64_t file_number);
- TwoD_IT_w_TopK* getIntervalTree()
+ TwoDITwTopK* getIntervalTree()
  {
      return intervalTree_;
  }
@@ -73,7 +73,7 @@ Status RangeLookUp(const ReadOptions& options,
   const std::string dbname_;
   const Options* options_;
   Cache* cache_;
-  TwoD_IT_w_TopK* intervalTree_;
+  TwoDITwTopK* intervalTree_;
   
   //Added interval tree for the database created for secondary indexed range query
   
