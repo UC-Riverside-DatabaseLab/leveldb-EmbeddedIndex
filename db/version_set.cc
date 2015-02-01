@@ -941,7 +941,7 @@ Status Version::Get(const ReadOptions& options,
             break;  
           
           if(value->size()>=kNoOfOutputs && value->front().sequence_number > interval.GetTimeStamp()){
-             
+            it.stop(); 
             return s;
         }
         
