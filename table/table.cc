@@ -391,13 +391,15 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
   if (iiter->Valid()) {
     //outputFile<<"in\n";
     Slice handle_value = iiter->value();
-    FilterBlockReader* filter = rep_->filter;
+    //FilterBlockReader* filter = rep_->filter;
     BlockHandle handle;
-    if (filter != NULL &&
-        handle.DecodeFrom(&handle_value).ok() &&
-        !filter->KeyMayMatch(handle.offset(), k)) {
+   // if (
+            //filter != NULL &&
+            //handle.DecodeFrom(&handle_value).ok() 
+    //    && !filter->KeyMayMatch(handle.offset(), k)
+           // ) {
       // Not found
-    } else {
+    //} else {
       //outputFile<<"in\n";
       Iterator* block_iter = BlockReader(this, options, iiter->value());
       block_iter->SeekToFirst();
@@ -408,7 +410,7 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
       }
       s = block_iter->status();
       delete block_iter;
-    }
+    //}
   }
   if (s.ok()) {
     s = iiter->status();

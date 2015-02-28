@@ -460,7 +460,10 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
     
   //ofstream outputFile;
   //outputFile.open("./debug3.txt" ,std::ofstream::out | std::ofstream::app);
-      
+     
+   // string ROOTPATH = "/home/mohiuddin/Desktop/LevelDB_Correctness_Testing/Debug/";
+
+   // outputFile.open(ROOTPATH+"debug_RangeSecSaveValue.txt" ,std::ofstream::out | std::ofstream::app);
  
   RangeSecSaver* s = reinterpret_cast<RangeSecSaver*>(arg);
              
@@ -531,6 +534,7 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
         //outputFile<<"skey: "<<  key.str() <<" S: "<< s->start_user_key.ToString() <<" E: "<< s->end_user_key.ToString() <<std::endl;
         
     if (s->ucmp->Compare(Key, s->start_user_key) >= 0 && s->ucmp->Compare(Key, s->end_user_key) <= 0) {
+    //if (key.str().compare(s->start_user_key.ToString()) >= 0 && key.str().compare(s->end_user_key.ToString()) <= 0) {
         
         //outputFile<< " value Found: "<< val << std::endl;
       s->state = (parsed_key.type == kTypeValue) ? kFound : kDeleted;
@@ -540,7 +544,7 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
         Slice ukey = ExtractUserKey(ikey);
         
         //outputFile<<ikey.ToString()<<ukey.ToString()<<endl<<val<<endl;
-        if(s->resultSetofKeysFound->find(ukey.ToString())== s->resultSetofKeysFound->end())
+        //if(s->resultSetofKeysFound->find(ukey.ToString())== s->resultSetofKeysFound->end())
         {
          
             //const char* p = ukey.data();
@@ -579,26 +583,28 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
             
             newVal.sequence_number = parsed_key.sequence;
             std::string temp;
-            //outputFile<< " value Found: "<< val << std::endl;
+           //outputFile<< newVal.key<<" -> value Found: "<< val << std::endl;
             //s->value->push_back(newVal); 
             if(s->value->size()<topKOutput)
             {
-                Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
-                if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                //Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                //if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
                 {
-                        newVal.Push(s->value, newVal);
-                        s->resultSetofKeysFound->insert(ukey.ToString());
+                     //outputFile<< "Push1: "<< std::endl;
+                    newVal.Push(s->value, newVal);
+                    //s->resultSetofKeysFound->insert(ukey.ToString());
                 }
             }
             else if(newVal.sequence_number>s->value->front().sequence_number)
             {
-                Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
-                if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                //Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                //if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
                 {
+                    //outputFile<< "Push2: "<< std::endl;
                     newVal.Pop(s->value);
                     newVal.Push(s->value,newVal);
-                    s->resultSetofKeysFound->insert(ukey.ToString());
-                    s->resultSetofKeysFound->erase(s->resultSetofKeysFound->find(s->value->front().key));
+                   // s->resultSetofKeysFound->insert(ukey.ToString());
+                   // s->resultSetofKeysFound->erase(s->resultSetofKeysFound->find(s->value->front().key));
                 }
             }
             
@@ -897,9 +903,11 @@ Status Version::Get(const ReadOptions& options,
                     GetStats* stats,string secKey, int kNoOfOutputs, std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot) {
     
     //ofstream outputFile;
-    //outputFile.open("./debug2.txt" ,std::ofstream::out | std::ofstream::app);
+    //string ROOTPATH = "/home/mohiuddin/Desktop/LevelDB_Correctness_Testing/Debug/";
+
+    //outputFile.open(ROOTPATH+"debug_intervalIterator.txt" ,std::ofstream::out | std::ofstream::app);
     
-    //outputFile<<"in\n";
+    //outputFile<<startk<<" to "<<endk<<", ";
     const Comparator* ucmp = vset_->icmp_.user_comparator();
     Status s;
 
@@ -937,10 +945,11 @@ Status Version::Get(const ReadOptions& options,
     int index = 0;
     while(it.next()) 
     {
-         if (index++ > kNoOfOutputs)
-            break;  
-          
+         //if (index++ > kNoOfOutputs)
+            //break;  
+         index++; 
           if(value->size()>=kNoOfOutputs && value->front().sequence_number > interval.GetTimeStamp()){
+              //outputFile<<index<<"\n";
             it.stop(); 
             return s;
         }
@@ -955,7 +964,7 @@ Status Version::Get(const ReadOptions& options,
         std::getline(ss, item2);
         elems.push_back(item2);
         
-        //outputFile<<"("<<interval->GetId()<<", "<<interval->GetLowPoint()<<", "<<interval->GetHighPoint()<<", "<<interval->GetTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
+        //outputFile<<index<<" ("<<interval.GetId()<<", "<<interval.GetLowPoint()<<", "<<interval.GetHighPoint()<<", "<<interval.GetTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
 
        
         std::map<string,FileMetaData*>::iterator itf; 
@@ -978,9 +987,10 @@ Status Version::Get(const ReadOptions& options,
       saver.end_user_key = endk;
       saver.value = value;
       saver.resultSetofKeysFound = resultSetofKeysFound;
+    //  outputFile<<"FileNumber: "<<f->number<<" & blockkey = "<<blockkey.internal_key().ToString()<<"\n";
       s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, blockkey.internal_key(), 
                                    &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
-      
+      //outputFile<<"done\n";
      
         
      
@@ -988,6 +998,7 @@ Status Version::Get(const ReadOptions& options,
         
 
     }
+    //outputFile<<index<<"\n";
     it.stop();
     
     

@@ -29,8 +29,9 @@ elems.push_back(item2);
 //
 template <typename T>
 static T max2(const T &a, const T &b) {
-if (a>b)
+if (a>b) {
   return a;
+}
 
 return b;
 };
@@ -39,12 +40,16 @@ return b;
 //
 template <typename T>
 static T max3(const T &a, const T &b, const T &c) {
-if (a>b)
-  if (a>c)
+if (a>b) {
+  if (a>c) {
     return a;
-else
-  if (b>c)
+  }
+}
+else {
+  if (b>c) {
     return b;
+  }
+}
 
 return c;
 };
@@ -113,12 +118,11 @@ void TwoDITwTopK::insertInterval(const std::string &id, const std::string &minKe
 
 try {
   if (iterator_in_use)
-    throw std::runtime_error("Interval tree locked by iterator.");
+    iterator->stop();
   
   if (id == "")
     throw std::runtime_error("Empty interval ID string");
   
-//std::cout<<"Insert Checkpoint 1\n";
   TwoDITNode *z = new TwoDITNode;
   
   std::list<std::string> r;
@@ -127,25 +131,19 @@ try {
   if (ids.find(r.front()) == ids.end()) {
     // create empty unordered_set for new key
     ids[r.front()] = std::unordered_set<std::string>();
-//std::cout<<"Insert Checkpoint 2a\n";
   }
   else if (ids[r.front()].find(r.back()) != ids[r.front()].end()) {
     // existing id is being rewritten, so delete the old interval from storage
     deleteInterval(id);
-//std::cout<<"Insert Checkpoint 2b\n";
   }
   
   ids[r.front()].insert(r.back());
-//std::cout<<"Insert Checkpoint 3\n";
   
   storage[id]=TwoDInterval(id, minKey, maxKey, maxTimestamp);
   storage.find(id)->second.tree_node = z;
-//std::cout<<"Insert Checkpoint 4\n";
   
-  //z->interval = &(storage.find(id)->second);
   z->interval_id = id;
   treeInsert(z);
-//std::cout<<"Insert Checkpoint 5\n";
     
   if (++sync_counter > sync_threshold) { sync(); }
 }
@@ -158,27 +156,21 @@ catch(std::exception &e) {
 //
 void TwoDITwTopK::deleteInterval(const std::string &id) {
 
-if(iterator_in_use) {
-  std::cerr<<std::endl<<"Delete failure: Interval tree locked by iterator."<<std::endl;
-  return;
-}
+if(iterator_in_use)
+  iterator->stop();
 
 if (storage.find(id) != storage.end()) {
   
-//std::cout<<"Delete Checkpoint 1\n";
   std::list<std::string> r;
   split(r, id, id_delim);
   
   ids[r.front()].erase(r.back());
   if (ids[r.front()].empty())
     ids.erase(r.front());
-//std::cout<<"Delete Checkpoint 2\n";
   
   treeDelete(storage.find(id)->second.tree_node);
-//std::cout<<"Delete Checkpoint 3\n";
 
   storage.erase(id);
-//std::cout<<"Delete Checkpoint 4\n";
 
   if (++sync_counter > sync_threshold) { sync(); }
 }
@@ -287,7 +279,6 @@ if (root != &nil) {
 }
 
 while (!nodes.empty()) {
-  //node = nodes.front();
   x = nodes.front().first;
   depth = nodes.front().second;
   nodes.pop_front();
@@ -355,10 +346,6 @@ TwoDITNode *y = &nil, *x = root;
 z->max_high = storage.at(z->interval_id).GetHighPoint();
 z->max_timestamp = storage.at(z->interval_id).GetTimeStamp();
 
-//std::cout<<"treeInsert: ("<<storage.at(z->interval_id).GetId()<<","<<storage.at(z->interval_id).GetLowPoint()<<","
-//         <<storage.at(z->interval_id).GetHighPoint()<<","<<storage.at(z->interval_id).GetTimeStamp()
-//         <<"):("<<z->max_high<<","<<z->max_timestamp<<","<<(z->is_red ? 'R' : 'B')<<")\n";
-
 while (x != &nil) {
   y = x;
   
@@ -387,7 +374,6 @@ z->right = &nil;
 z->is_red = true;
 
 treeInsertFixup(z);
-//std::cout<<"treeInsert successful\n";
 };
 
 
@@ -445,18 +431,12 @@ bool y_orig_is_red = y->is_red;
 
 
 if (z->left == &nil) {
-//std::cout<<"delete case 1 ("<<storage.at(z->interval_id).GetId()<<")\n";
   x = z->right;
-  treeTransplant(z, z->right);
-  //treeMaxFieldsFixup(z->parent);
-//std::cout<<"treeDelete Checkpoint 1a\n";
+  treeTransplant(z, x);
 }
 else if (z->right == &nil) {
-//std::cout<<"delete case 2 ("<<storage.at(z->interval_id).GetId()<<")\n";
   x = z->left;
-  treeTransplant(z, z->left);
-  //treeMaxFieldsFixup(z->parent);
-//std::cout<<"treeDelete Checkpoint 1b\n";
+  treeTransplant(z, x);
 }
 else {
   y = treeMinimum(z->right);
@@ -464,38 +444,24 @@ else {
   x = y->right;
   if (y->parent == z) {
     x->parent = y;
-//std::cout<<"delete case 3 ("<<storage.at(z->interval_id).GetId()<<")\n";
-//std::cout<<"treeDelete Checkpoint 1c\n";
   }
   else {
-    treeTransplant(y, y->right);
+    treeTransplant(y, x);
     y->right = z->right;
     y->right->parent = y;
-    //treeMaxFieldsFixup(y);
-//std::cout<<"delete case 4 ("<<storage.at(z->interval_id).GetId()<<")\n";
-//std::cout<<"treeDelete Checkpoint 1d\n";
   }
-  treeTransplant(z,y);
+  treeTransplant(z, y);
   y->left = z->left;
   y->left->parent = y;
   y->is_red = z->is_red;
-  //treeMaxFieldsFixup(y);
 }
 
-//std::cout<<"treeDelete Checkpoint 2\n";
-//treePrintLevelOrder();
-//std::cout<<"\n";
+treeMaxFieldsFixup(x->parent);
+
 if (!y_orig_is_red)
   treeDeleteFixup(x);
-//std::cout<<"treeDelete Checkpoint 3\n";
-//treePrintLevelOrder();
-//std::cout<<"\n";
-//std::cout<<"starting fixup from ("<<storage.at(y->parent->interval_id).GetId()<<")\n";
-//treeMaxFieldsFixup(y->parent);
-//std::cout<<"treeDelete Checkpoint 4\n";
 
 delete z;
-//std::cout<<"treeDelete Checkpoint 5\n";
 };
 
 
@@ -609,13 +575,9 @@ else
 y->left= x;
 x->parent = y;
 
-//std::cout<<"right rotate, setting y:mh:"<<x->max_high<<" x:"<<storage.at(x->interval_id).GetId()<<" y:"<<storage.at(y->interval_id).GetId()<<"\n";
-//std::cout<<"right rotate, setting y:mt:"<<x->max_timestamp<<"\n";
 y->max_high = x->max_high;
 y->max_timestamp = x->max_timestamp;
 treeSetMaxFields(x);
-//std::cout<<"right rotate, setting x:mh:"<<x->max_high<<"\n";
-//std::cout<<"right rotate, setting x:mt:"<<x->max_timestamp<<"\n";
 };
 
 
@@ -662,8 +624,19 @@ v->parent = u->parent;
 //
 void TwoDITwTopK::treeMaxFieldsFixup(TwoDITNode* x) {
 
+std::string old_high;
+uint64_t old_timestamp;
+
 while (x != &nil) {
+  
+  old_high = x->max_high;
+  old_timestamp = x->max_timestamp;
   treeSetMaxFields(x);
+  
+  // early exemption
+  if (x->max_high == old_high and x->max_timestamp == old_timestamp)
+    break;
+  
   x = x->parent;
 }
 };

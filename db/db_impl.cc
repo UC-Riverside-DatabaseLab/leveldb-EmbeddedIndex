@@ -1665,7 +1665,7 @@ void DBImpl::GetApproximateSizes(
 Status DB::Put(const WriteOptions& opt, const Slice& key, const Slice& value) {
   WriteBatch batch;
   batch.Put(key, value);
-  ofstream outputFile;
+  //ofstream outputFile;
   //outputFile.open("/home/mohiuddin/Desktop/TestDB/debug2.txt" ,std::ofstream::out | std::ofstream::app);
   
   //outputFile<<key.ToString()<<" -> "<<value.ToString()<<endl;
