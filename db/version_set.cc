@@ -989,12 +989,12 @@ Status Version::Get(const ReadOptions& options,
       saver.resultSetofKeysFound = resultSetofKeysFound;
     //  outputFile<<"FileNumber: "<<f->number<<" & blockkey = "<<blockkey.internal_key().ToString()<<"\n";
       s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, blockkey.internal_key(), 
-                                   &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
+                                  &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
       //outputFile<<"done\n";
      
         
-     
-        
+      //if(index==3)
+          //break;
         
 
     }

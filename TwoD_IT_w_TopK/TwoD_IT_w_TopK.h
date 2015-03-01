@@ -18,7 +18,7 @@ class TwoDInterval {
 public:
   TwoDInterval() {};
   TwoDInterval(const std::string &id, const std::string &low, const std::string &high, const uint64_t &timestamp) :
-    _id(id), _low(low), _high(high), _timestamp(timestamp), tree_node(nullptr) {};
+    _id(id), _low(low), _high(high), _timestamp(timestamp) {};
   
   std::string GetId() const {return _id;};
   std::string GetLowPoint() const {return _low;};
@@ -37,8 +37,6 @@ public:
     return (otherInterval._high >= _low);
     }
 
-  TwoDITNode* tree_node;
-
 protected:
   std::string _id;
   std::string _low;
@@ -52,8 +50,7 @@ class TwoDITNode {
 public:
   TwoDITNode() : is_red(false) {};
 
-  //TwoDInterval *interval;
-  std::string interval_id;
+  TwoDInterval interval;
   bool is_red;
   std::string max_high;
   uint64_t max_timestamp;
@@ -110,7 +107,7 @@ private:
   void treeDestroy(TwoDITNode* x);
   
   TwoDITNode *root, nil;
-  std::unordered_map<std::string, TwoDInterval> storage;
+  std::unordered_map<std::string, TwoDITNode*> storage;
   
   std::unordered_map<std::string, std::unordered_set<std::string> > ids;
   char id_delim;
