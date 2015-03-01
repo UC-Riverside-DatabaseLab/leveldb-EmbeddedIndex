@@ -226,21 +226,37 @@ else
 
 
 //
-void TwoDITwTopK::topK(std::vector<TwoDInterval> &ret_value, const std::string &minKey, const std::string &maxKey, const uint32_t &k) const {
+void TwoDITwTopK::topK(std::vector<TwoDInterval> &ret_value, const std::string &minKey, const std::string &maxKey) {
 
 TwoDInterval test("", minKey, maxKey, 0LL);
+TwoDITNode *x;
+std::unordered_set<TwoDITNode*> found;
+//std::cout<<"topK: Checkpoint 1.\n";
 
+while(treeIntervalSearch(test, found, x)) {
+  ret_value.push_back(x->interval);
+  //deleteInterval(ret_value.back().GetId());
+  
+}
+//std::cout<<"topK: Checkpoint 2.\n";
+
+//for (std::vector<TwoDInterval>::const_iterator it = ret_value.begin(); it != ret_value.end(); it++) {
+//  ret_value.push_back(it->second->interval);
+  //insertInterval(it->GetId(), it->GetLowPoint(), it->GetHighPoint(), it->GetTimeStamp());
+//}
+//std::cout<<"topK: Checkpoint 3.\n";
+
+/*
 for (std::unordered_map<std::string, TwoDITNode*>::const_iterator it = storage.begin(); it != storage.end(); it++) {
   if (it->second->interval * test) {
     ret_value.push_back(it->second->interval);
   }
 }
+*/
 
 std::sort(ret_value.begin(), ret_value.end(), std::greater<TwoDInterval>());
+//std::cout<<"topK: Checkpoint 4.\n";
 
-if (ret_value.size() > k) {
-  ret_value.erase(ret_value.begin() + k, ret_value.end());
-}
 };
 
 
@@ -345,6 +361,13 @@ std::cout<<std::endl;
 
 
 //
+int TwoDITwTopK::treeHeight() const {
+
+return treeHeightRecursive(root);
+};
+
+
+//
 void TwoDITwTopK::treePrintInOrderRecursive(TwoDITNode* x, const int &depth) const {
 
 if (x != &nil) {
@@ -354,6 +377,45 @@ if (x != &nil) {
            <<","<<(x->is_red ? 'R' : 'B')<<","<<depth<<")";
   treePrintInOrderRecursive(x->right, depth + 1);
 }
+};
+
+
+//
+int TwoDITwTopK::treeHeightRecursive(TwoDITNode* x) const {
+
+if (x == &nil)
+  return 0;
+
+int hl = treeHeightRecursive(x->left), hr = treeHeightRecursive(x->right);
+
+if (hl > hr)
+  return hl + 1;
+
+return hr + 1;
+};
+
+
+//
+bool TwoDITwTopK::treeIntervalSearch(const TwoDInterval &test_interval, std::unordered_set<TwoDITNode*> &found, TwoDITNode *&x) const {
+  
+  x = root;
+//std::cout<<"treeIntervalSearch: Checkpoint 1.\n";
+  
+  while (x != &nil) {
+  
+  if (x->interval * test_interval and found.find(x) == found.end()) {
+    found.insert(x);
+    return true;
+  }
+  else if (x->left == &nil)
+    x = x->right;
+  else if (x->left->max_high < test_interval.GetLowPoint())
+    x = x->right;
+  else
+    x = x->left;
+  }
+  
+  return false;
 };
 
 

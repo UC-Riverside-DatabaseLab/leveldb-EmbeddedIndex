@@ -10,6 +10,7 @@
 #include <stdexcept>
 
 
+
 class TwoDITNode;
 class TopKIterator;
 
@@ -71,7 +72,7 @@ public:
   void deleteAllIntervals(const std::string &id_prefix);
   
   void getInterval(TwoDInterval &ret_interval, const std::string &id) const;
-  void topK(std::vector<TwoDInterval> &ret_value, const std::string &minKey, const std::string &maxKey, const uint32_t &k) const;
+  void topK(std::vector<TwoDInterval> &ret_value, const std::string &minKey, const std::string &maxKey);
   
   void sync() const;
 
@@ -86,13 +87,15 @@ public:
   void storagePrint() const;
   void treePrintLevelOrder() const;
   void treePrintInOrder() const;
+  int treeHeight() const;
   
 private:
   
   void setDefaults();
   
   void treePrintInOrderRecursive(TwoDITNode* x, const int &depth) const;
-  int treeHeight();
+  int treeHeightRecursive(TwoDITNode* x) const;
+  bool treeIntervalSearch(const TwoDInterval &test_interval, std::unordered_set<TwoDITNode*> &found, TwoDITNode* &x) const;
   void treeInsert(TwoDITNode* z);
   void treeInsertFixup(TwoDITNode* z);
   void treeDelete(TwoDITNode* z);

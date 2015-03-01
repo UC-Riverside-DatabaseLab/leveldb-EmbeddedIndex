@@ -939,7 +939,7 @@ Status Version::Get(const ReadOptions& options,
    //std::vector<TwoDInterval> intervals;
     TwoDITwTopK* itree = this->vset_->table_cache_->getIntervalTree();
     
-    TwoDInterval interval;
+    /*TwoDInterval interval;
     TopKIterator it(*itree, interval, startk, endk); // Locks a for inserts, deletes and iteration by other iterators
     // Top 2 intervals:
     int index = 0;
@@ -1000,15 +1000,15 @@ Status Version::Get(const ReadOptions& options,
     }
     //outputFile<<index<<"\n";
     it.stop();
+    */
     
     
-    /*
     std::vector<TwoDInterval> intervals;
-    itree->topK(intervals, startk, endk, (uint32_t)kNoOfOutputs);
+    itree->topK(intervals, startk, endk);
     
     for(std::vector<TwoDInterval>::const_iterator it = intervals.begin(); it != intervals.end(); it++) {
     if(value->size()>=kNoOfOutputs && value->front().sequence_number > it->GetTimeStamp()){
-    return s;
+        return s;
     }
     std::stringstream ss(it->GetId());
     std::string item1, item2;
@@ -1025,6 +1025,7 @@ Status Version::Get(const ReadOptions& options,
     continue;
     FileMetaData* f = itf->second;
     
+    LookupKey blockkey(elems.back(), snapshot);  
     RangeSecSaver saver;
     saver.state = kNotFound;
     saver.ucmp = ucmp;
@@ -1032,11 +1033,12 @@ Status Version::Get(const ReadOptions& options,
     saver.end_user_key = endk;
     saver.value = value;
     saver.resultSetofKeysFound = resultSetofKeysFound;
-    s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, elems.back(),
-    &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
+  //  outputFile<<"FileNumber: "<<f->number<<" & blockkey = "<<blockkey.internal_key().ToString()<<"\n";
+    s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, blockkey.internal_key(), 
+                                  &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
    }
 
- */
+ 
     if(value->size()==0)
         return Status::NotFound(Slice());  // Use an empty error message for speed
     else
