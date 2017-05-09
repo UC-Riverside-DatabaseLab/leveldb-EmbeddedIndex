@@ -3,11 +3,11 @@
 
 #include <algorithm>
 #include <inttypes.h>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <stdexcept>
 
 
 
@@ -96,6 +96,8 @@ private:
   void treePrintInOrderRecursive(TwoDITNode* x, const int &depth) const;
   int treeHeightRecursive(TwoDITNode* x) const;
   bool treeIntervalSearch(const TwoDInterval &test_interval, std::unordered_set<TwoDITNode*> &found, TwoDITNode* &x) const;
+  void treeIntervalSearch(const TwoDInterval &test_interval, std::vector<TwoDInterval> &ret_value, TwoDITNode* x) const;
+
   void treeInsert(TwoDITNode* z);
   void treeInsertFixup(TwoDITNode* z);
   void treeDelete(TwoDITNode* z);

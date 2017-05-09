@@ -54,6 +54,15 @@ Status Get(const ReadOptions& options,
                        bool (*saver)(void*, const Slice&, const Slice&, std::string secKey,int topKOutput,DBImpl* db),
                        string secKey,int topKOutput,DBImpl* db) ;
 
+Status Get(const ReadOptions& options,
+                       uint64_t file_number,
+                       uint64_t file_size,
+					   const Slice& blockKey,
+                       const Slice& k,
+                       void* arg,
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
+                       string secKey,int topKOutput, DBImpl* db);
+
 Status RangeLookUp(const ReadOptions& options,
                        uint64_t file_number,
                        uint64_t file_size,

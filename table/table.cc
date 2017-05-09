@@ -376,33 +376,22 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
   //outputFile.close();
   return s;
 }
+
 Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
                           bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
-    //ofstream outputFile;
-    //outputFile.open("./debug.txt");
-    //outputFile<<k.ToString()<<"\n\nStart:\n\n";
+
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
   iiter->Seek(k);
  
-  //outputFile<<"in2\n";
- 
   if (iiter->Valid()) {
-    //outputFile<<"in\n";
     Slice handle_value = iiter->value();
-    //FilterBlockReader* filter = rep_->filter;
+
     BlockHandle handle;
-   // if (
-            //filter != NULL &&
-            //handle.DecodeFrom(&handle_value).ok() 
-    //    && !filter->KeyMayMatch(handle.offset(), k)
-           // ) {
-      // Not found
-    //} else {
-      //outputFile<<"in\n";
-      Iterator* block_iter = BlockReader(this, options, iiter->value());
-      block_iter->SeekToFirst();
+
+    Iterator* block_iter = BlockReader(this, options, iiter->value());
+    block_iter->SeekToFirst();
       while(block_iter->Valid()) {
         //outputFile<<"in\n"; 
         bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
@@ -411,17 +400,75 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
       s = block_iter->status();
       delete block_iter;
     //}
+
+      if (s.ok()) {
+          s = iiter->status();
+        }
+
   }
-  if (s.ok()) {
-    s = iiter->status();
-  }
+  else
+	  s.IOError("");
+
+
   delete iiter;
   //outputFile.close();
   return s;
 }
 
 
+
+Status Table::InternalGet(const ReadOptions& options, const Slice& blockkey,  const Slice& pointkey,
+                          void* arg,
+						  bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
+
+  Status s;
+  Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
+  iiter->Seek(blockkey);
  
+  if (iiter->Valid()) {
+
+	  Slice handle_value = iiter->value();
+	        FilterBlockReader* filter = rep_->secondary_filter;
+	        BlockHandle handle;
+	        //outputFile<<(filter != NULL)<<endl;//(!filter->KeyMayMatch(handle.offset(), k));//(handle.DecodeFrom(&handle_value).ok());
+	        if (filter != NULL &&
+	            handle.DecodeFrom(&handle_value).ok() &&
+	            !filter->KeyMayMatch(handle.offset(), pointkey)) {
+
+	        }
+    //Slice handle_value = iiter->value();
+
+    //BlockHandle handle;
+	        else
+	        {
+				Iterator* block_iter = BlockReader(this, options, iiter->value());
+				block_iter->SeekToFirst();
+				  while(block_iter->Valid()) {
+					bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
+					block_iter->Next();
+				  }
+				  s = block_iter->status();
+				  delete block_iter;
+	        }
+    //}
+
+      if (s.ok()) {
+          s = iiter->status();
+        }
+
+  }
+  else
+	  s.IOError("");
+
+
+  delete iiter;
+  //outputFile.close();
+  return s;
+}
+
+
+
+
 uint64_t Table::ApproximateOffsetOf(const Slice& key) const {
   Iterator* index_iter =
       rep_->index_block->NewIterator(rep_->options.comparator);

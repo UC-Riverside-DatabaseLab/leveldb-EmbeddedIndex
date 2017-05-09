@@ -168,7 +168,7 @@ try {
 catch(std::exception &e) {
   std::cerr<<std::endl<<"Insert failure: "<<e.what()<<std::endl;
 }
-};
+}
 
 
 //
@@ -208,7 +208,7 @@ if (ids.find(id_prefix) != ids.end()) {
     deleteInterval(*it);
   }
 }
-};
+}
 
 
 //
@@ -222,42 +222,44 @@ if (ids.find(r.front()) != ids.end() and ids.at(r.front()).find(r.back()) != ids
 else
   ret_interval = TwoDInterval("", "", "", 0LL);
 
-};
+}
 
 
 //
+/*
 void TwoDITwTopK::topK(std::vector<TwoDInterval> &ret_value, const std::string &minKey, const std::string &maxKey) {
 
 TwoDInterval test("", minKey, maxKey, 0LL);
 TwoDITNode *x;
 std::unordered_set<TwoDITNode*> found;
-//std::cout<<"topK: Checkpoint 1.\n";
 
-while(treeIntervalSearch(test, found, x)) {
+while(treeIntervalSearch(test, found, x))
   ret_value.push_back(x->interval);
-  //deleteInterval(ret_value.back().GetId());
-  
-}
-//std::cout<<"topK: Checkpoint 2.\n";
-
-//for (std::vector<TwoDInterval>::const_iterator it = ret_value.begin(); it != ret_value.end(); it++) {
-//  ret_value.push_back(it->second->interval);
-  //insertInterval(it->GetId(), it->GetLowPoint(), it->GetHighPoint(), it->GetTimeStamp());
-//}
-//std::cout<<"topK: Checkpoint 3.\n";
-
-/*
-for (std::unordered_map<std::string, TwoDITNode*>::const_iterator it = storage.begin(); it != storage.end(); it++) {
-  if (it->second->interval * test) {
-    ret_value.push_back(it->second->interval);
-  }
-}
-*/
 
 std::sort(ret_value.begin(), ret_value.end(), std::greater<TwoDInterval>());
-//std::cout<<"topK: Checkpoint 4.\n";
-
 };
+*/
+
+void TwoDITwTopK::topK(std::vector<TwoDInterval> &ret_value, const std::string &minKey, const std::string &maxKey) {
+
+TwoDInterval test("", minKey, maxKey, 0LL);
+TwoDITNode *x;
+std::unordered_set<TwoDITNode*> found;
+x = root;
+treeIntervalSearch(test, ret_value, x);
+
+//treeIntervalSearch(test, found, x);
+//std::unordered_set<TwoDITNode*>
+/*
+
+ for (std::unordered_set< TwoDITNode*>::const_iterator it = found.begin(); it != found.end(); it++) {
+	ret_value.push_back((*it)->interval);
+  }
+*/
+
+	std::sort(ret_value.begin(), ret_value.end(), std::greater<TwoDInterval>());
+
+}
 
 
 //
@@ -277,18 +279,18 @@ if (ofile.is_open()) {
 }
 
 sync_counter = 0;
-};
+}
 
 
 //
-void TwoDITwTopK::setSyncFile(const std::string &filename) { sync_file = filename; };
-void TwoDITwTopK::getSyncFile(std::string &filename) const { filename = sync_file; };
+void TwoDITwTopK::setSyncFile(const std::string &filename) { sync_file = filename; }
+void TwoDITwTopK::getSyncFile(std::string &filename) const { filename = sync_file; }
 
-void TwoDITwTopK::setSyncThreshold(const uint32_t &threshold) { sync_threshold = threshold; };
-void TwoDITwTopK::getSyncThreshold(uint32_t &threshold) const { threshold = sync_threshold; };
+void TwoDITwTopK::setSyncThreshold(const uint32_t &threshold) { sync_threshold = threshold; }
+void TwoDITwTopK::getSyncThreshold(uint32_t &threshold) const { threshold = sync_threshold; }
 
-void TwoDITwTopK::setIdDelimiter(const char &delim) { id_delim = delim; };
-void TwoDITwTopK::getIdDelimiter(char &delim) const { delim = id_delim; };
+void TwoDITwTopK::setIdDelimiter(const char &delim) { id_delim = delim; }
+void TwoDITwTopK::getIdDelimiter(char &delim) const { delim = id_delim; }
 
 
 //
@@ -298,7 +300,7 @@ for (std::unordered_map<std::string, TwoDITNode*>::const_iterator it = storage.b
   std::cout<<"("<<it->second->interval.GetId()<<","<<it->second->interval.GetLowPoint()<<","<<it->second->interval.GetHighPoint()
         <<","<<it->second->interval.GetTimeStamp()<<")"<<"\n";
 }
-};
+}
 
 
 //
@@ -349,7 +351,7 @@ while (!nodes.empty()) {
 }
 
 std::cout<<line1.str()<<std::endl<<line2.str()<<std::endl;
-};
+}
 
 
 //
@@ -357,14 +359,14 @@ void TwoDITwTopK::treePrintInOrder() const {
 
 treePrintInOrderRecursive(root, 0);
 std::cout<<std::endl;
-};
+}
 
 
 //
 int TwoDITwTopK::treeHeight() const {
 
 return treeHeightRecursive(root);
-};
+}
 
 
 //
@@ -392,22 +394,22 @@ if (hl > hr)
   return hl + 1;
 
 return hr + 1;
-};
+}
 
 
 //
 bool TwoDITwTopK::treeIntervalSearch(const TwoDInterval &test_interval, std::unordered_set<TwoDITNode*> &found, TwoDITNode *&x) const {
   
   x = root;
-//std::cout<<"treeIntervalSearch: Checkpoint 1.\n";
   
   while (x != &nil) {
   
   if (x->interval * test_interval and found.find(x) == found.end()) {
+
     found.insert(x);
-    return true;
+    //return true;
   }
-  else if (x->left == &nil)
+  if (x->left == &nil)
     x = x->right;
   else if (x->left->max_high < test_interval.GetLowPoint())
     x = x->right;
@@ -415,8 +417,37 @@ bool TwoDITwTopK::treeIntervalSearch(const TwoDInterval &test_interval, std::uno
     x = x->left;
   }
   
-  return false;
-};
+  //return false;
+}
+void TwoDITwTopK::treeIntervalSearch(const TwoDInterval &test_interval, std::vector<TwoDInterval> &ret_value, TwoDITNode *x) const {
+
+	if(x == &nil)
+	{
+		//std::cout<<"return1\n";
+		return;
+	}
+	if(test_interval.GetLowPoint().compare(x->max_high) >0)
+	{
+		//std::cout<<"return2\n";
+
+		return;
+	}
+	if(x->left!= &nil)
+		treeIntervalSearch(test_interval, ret_value, x->left);
+
+	if (x->interval * test_interval) {
+		ret_value.push_back(x->interval);
+	}
+
+	if(test_interval.GetHighPoint().compare(x->interval.GetLowPoint()) <0)
+	{
+		//std::cout<<"return3\n";
+		return;
+	}
+	if(x->right!= &nil)
+		treeIntervalSearch(test_interval, ret_value, x->right);
+
+}
 
 
 //

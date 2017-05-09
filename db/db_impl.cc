@@ -692,6 +692,7 @@ Status DBImpl::BackgroundCompaction() {
   if (c == NULL) {
     // Nothing to do
   } else if (!is_manual && c->IsTrivialMove()) {
+	  cout<<"trivial\n";
     // Move file to next level
     assert(c->num_input_files(0) == 1);
     FileMetaData* f = c->input(0, 0);
@@ -708,6 +709,7 @@ Status DBImpl::BackgroundCompaction() {
         versions_->LevelSummary(&tmp));
   } else {
     CompactionState* compact = new CompactionState(c);
+    cout<<"compaction\n";
     status = DoCompactionWork(compact);
     CleanupCompaction(compact);
     c->ReleaseInputs();
@@ -1174,7 +1176,7 @@ Status DBImpl::Get(const ReadOptions& options,
     
     if(imm != NULL && kNoOfOutputs-value->size()>0) {
       //outputFile<<"immGet\n";  
-      int memsize = value->size(); 
+      //int memsize = value->size();
        //SECONDARY MEMTABLE
       imm->Get(skey, snapshot, value, &s ,&resultSetofKeysFound , kNoOfOutputs) ;
       //if(value->size()>kNoOfOutputs)
@@ -1182,7 +1184,7 @@ Status DBImpl::Get(const ReadOptions& options,
     
     }  
     
-    if(kNoOfOutputs>value->size())
+    if(kNoOfOutputs>(int)(value->size()))
     {
         //outputFile<<"sstget\n";
         s = current->Get(options, lkey, value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound,this);
@@ -1262,13 +1264,13 @@ Status DBImpl::Get(const ReadOptions& options,
     
     if(imm != NULL && kNoOfOutputs-value->size()>0) {
       //outputFile<<"immGet\n";  
-      int memsize = value->size(); 
+      //int memsize = (int)(value->size());
       imm->RangeLookUp(startSkey, endSkey, snapshot, value, &s ,&resultSetofKeysFound , kNoOfOutputs) ;
           //if(value->size()>kNoOfOutputs)
        // std::sort(value->begin()+memsize, value->end(), NewestFirst);   
     }  
     
-    if(kNoOfOutputs>value->size())
+    if(kNoOfOutputs>(int)(value->size()))
     {
         //outputFile<<"sstget\n";
         s = current->RangeLookUp(options, startSkey.ToString(), endSkey.ToString(), value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound, this, snapshot);
@@ -1384,7 +1386,7 @@ Status DBImpl::Put(const WriteOptions& o, const Slice& val) {
         pKey<<tid;
   }
   
-  Slice key = pKey.str();
+  //Slice key = pKey.str();
   docToParse.RemoveMember(this->options_.PrimaryAtt.c_str());
   rapidjson::StringBuffer strbuf;
   rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);

@@ -124,6 +124,17 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
   }
 
   if (r->pending_index_entry) {
+	 // cout<<"last key: "<<r->last_key<<endl;
+
+
+	intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+	//cout<<SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ) <<" ,min: "<< rep_->minSecValue <<" ,max: "<< rep_->maxSecValue<<" ,seqno: "<< rep_->maxSecSeqNumber<<std::endl;
+
+
+	rep_->minSecValue= "";
+	rep_->maxSecValue= "";
+	rep_->maxSecSeqNumber= 0;
+
     assert(r->data_block.empty());
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
     std::string handle_encoding;
@@ -131,12 +142,8 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     r->index_block.Add(r->last_key, Slice(handle_encoding));
     r->pending_index_entry = false;
     // Insert in the interval tree the new blocks info
-    
-    intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
-    //outputFile<<SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ) <<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
-    rep_->minSecValue= "";
-    rep_->maxSecValue= "";
-    rep_->maxSecSeqNumber= 0;
+    //cout<<"last key 2: "<<r->last_key<<endl;
+
   }
 
   if (r->filter_block != NULL) {
@@ -202,7 +209,7 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
   
   
   r->secondary_filter_block->AddKey(Key);
-  if(rep_->maxSecValue.compare(sKey.str())<0)
+  if(rep_->maxSecValue== "" || rep_->maxSecValue.compare(sKey.str())<0)
   {
       rep_->maxSecValue = sKey.str();
   }
@@ -212,16 +219,7 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
       rep_->minSecValue = sKey.str();
   }
   
-  const size_t n = key.size();
-  if (n >= 8)  
-  {
-      uint64_t num = DecodeFixed64(key.data() + n - 8);
-      SequenceNumber seq  = num >> 8;
-      if(rep_->maxSecSeqNumber < seq)
-        {
-            rep_->maxSecSeqNumber = seq;
-        }
-  }
+
       
   /*ParsedInternalKey parsed_key;
   if (!ParseInternalKey(key, &parsed_key)) {
@@ -236,6 +234,17 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
   r->last_key.assign(key.data(), key.size());
   r->num_entries++;
   r->data_block.Add(key, value);
+
+  const size_t n = key.size();
+	if (n >= 8)
+	{
+		uint64_t num = DecodeFixed64(key.data() + n - 8);
+		SequenceNumber seq  = num >> 8;
+		if(rep_->maxSecSeqNumber < seq)
+		  {
+			  rep_->maxSecSeqNumber = seq;
+		  }
+	}
 
   const size_t estimated_block_size = r->data_block.CurrentSizeEstimate();
   if (estimated_block_size >= r->options.block_size) {
@@ -369,9 +378,13 @@ Status TableBuilder::Finish() {
   // Write index block
   if (ok()) {
     if (r->pending_index_entry) {
-      //std::ofstream outputFile;
-      //outputFile.open("./add.txt", std::ofstream::out | std::ofstream::app);
- 
+    	intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+
+	  //outputFile<<SSTR(fileNumber)+"+"+ r->last_key.substr(0, r->last_key.size() - 8 )<<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
+		rep_->minSecValue= "";
+		rep_->maxSecValue= "";
+		rep_->maxSecSeqNumber= 0;
+
       //outputFile<<r->last_key<<std::endl;
       //r->options.comparator->FindShortSuccessor(&r->last_key);
       std::string handle_encoding;
@@ -379,13 +392,9 @@ Status TableBuilder::Finish() {
       r->index_block.Add(r->last_key, Slice(handle_encoding));
       r->pending_index_entry = false;
       
+      if(rand()%100==0)
+    	  intervalTree_->storagePrint();
       
-      intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
-      
-      //outputFile<<SSTR(fileNumber)+"+"+ r->last_key.substr(0, r->last_key.size() - 8 )<<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
-        rep_->minSecValue= "";
-        rep_->maxSecValue= "";
-        rep_->maxSecSeqNumber= 0;
     }
     WriteBlock(&r->index_block, &index_block_handle);
   }
@@ -402,6 +411,7 @@ Status TableBuilder::Finish() {
       r->offset += footer_encoding.size();
     }
   }
+
   return r->status;
 }
 

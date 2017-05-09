@@ -82,7 +82,10 @@ class Table {
                           void* arg,
                           bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db) ;
 
-  
+  Status InternalGet(const ReadOptions& options, const Slice& blockkey,  const Slice& pointkey,
+                            void* arg,
+  						  bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db) ;
+
   void ReadMeta(const Footer& footer);
   void ReadFilter(const Slice& filter_handle_value);
   void ReadSecondaryFilter(const Slice& filter_handle_value);
