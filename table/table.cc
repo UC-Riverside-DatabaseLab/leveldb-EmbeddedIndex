@@ -20,7 +20,21 @@
 #include "rapidjson/document.h"
 
 namespace leveldb {
-    
+
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    split(s, delim, elems);
+    return elems;
+}
 static Slice GetLengthPrefixedSlice(const char* data) {
   uint32_t len;
   const char* p = data;
@@ -47,6 +61,7 @@ struct Table::Rep {
 
   BlockHandle metaindex_handle;  // Handle to metaindex_block: saved from footer
   Block* index_block;
+  Block* interval_block;
 };
 
 Status Table::Open(const Options& options,
@@ -80,14 +95,30 @@ Status Table::Open(const Options& options,
     }
   }
 
+  // Read the interval block
+  Block* interval_block = NULL;
+  Rep* rep = new Table::Rep;
+  if(rep->options.IntervalTreeFileName.empty())
+  {
+	BlockContents contents;
+
+	if (s.ok()) {
+	  s = ReadBlock(file, ReadOptions(), footer.interval_handle(), &contents);
+	  if (s.ok()) {
+		  interval_block = new Block(contents);
+	  }
+	}
+  }
+
   if (s.ok()) {
     // We've successfully read the footer and the index block: we're
     // ready to serve requests.
-    Rep* rep = new Table::Rep;
+
     rep->options = options;
     rep->file = file;
     rep->metaindex_handle = footer.metaindex_handle();
     rep->index_block = index_block;
+    rep->interval_block = interval_block;
     rep->cache_id = (options.block_cache ? options.block_cache->NewId() : 0);
     rep->filter_data = NULL;
     rep->filter = NULL;
@@ -376,6 +407,157 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
   //outputFile.close();
   return s;
 }
+
+
+Status Table::InternalGetWithInterval(const ReadOptions& options, const Slice& k,
+                          void* arg,
+                          bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
+
+	Status s;
+	Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
+	iiter->SeekToFirst();
+
+	Iterator* iterInterval = rep_->interval_block->NewIterator(rep_->options.comparator);
+	iterInterval->SeekToFirst();
+
+	//std::string keystr = k.ToString().substr(0, k.size()-8);
+	//cout<<keystr<<endl;
+	const char* ks = k.data();
+	Slice sk = Slice(ks, k.size()-8);
+
+  while (iiter->Valid()) {
+    Slice handle_value = iiter->value();
+      FilterBlockReader* filter = rep_->secondary_filter;
+      BlockHandle handle;
+      //std::vector<std::string> x ;
+      Slice key, value;
+      if(iterInterval->Valid())
+      {
+    	  key = iterInterval->key();
+    	  value = iterInterval->value();
+    	  //x = split(iterInterval->value().ToString(), ',');
+    	  //cout<<key<<" to "<<value<<endl;
+      }
+      //outputFile<<(filter != NULL)<<endl;//(!filter->KeyMayMatch(handle.offset(), k));//(handle.DecodeFrom(&handle_value).ok());
+      if(sk.compare(key)<0 || sk.compare(value) >0 )
+		{
+		  //cout<<"Prune Interval\n";
+		}
+      else if (filter != NULL &&
+          handle.DecodeFrom(&handle_value).ok() &&
+          !filter->KeyMayMatch(handle.offset(), k)) {
+          //outputFile<<(!filter->KeyMayMatch(handle.offset(), k))<<"\n";
+          //outputFile<<"false\n";
+        // Not found
+    	  //cout<<"BloomFilter Interval\n";
+      }
+//      else if(x.size()==3 && (keystr.compare( x[0])<0 || keystr.compare(x[1]) >0 ))
+//      {
+//    	  cout<<"Prune Interval\n";
+//      }
+//		else if(sk.compare(key)<0 || sk.compare(value) >0 )
+//		{
+//		  cout<<"Prune Interval\n";
+//		}
+      else {
+
+        //outputFile<<"true\n";
+
+        Iterator* block_iter = BlockReader(this, options, iiter->value());
+        block_iter->SeekToFirst();
+        while(block_iter->Valid()) {
+
+        bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
+
+        block_iter->Next();
+        }
+        s = block_iter->status();
+        delete block_iter;
+
+
+      }
+
+      iiter->Next();
+      iterInterval->Next();
+  }
+
+
+
+  if (s.ok()) {
+    s = iiter->status();
+  }
+  delete iiter;
+  delete iterInterval;
+  //outputFile.close();
+  return s;
+}
+
+
+Status Table::RangeInternalGetWithInterval(const ReadOptions& options, const Slice& startk, const Slice& endk,
+                          void* arg,
+						  bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db), string secKey,int topKOutput,DBImpl* db)  {
+
+	Status s;
+	Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
+	iiter->SeekToFirst();
+
+	Iterator* iterInterval = rep_->interval_block->NewIterator(rep_->options.comparator);
+	iterInterval->SeekToFirst();
+
+	//std::string keystr = k.ToString().substr(0, k.size()-8);
+	//cout<<keystr<<endl;
+//	const char* ks = k.data();
+//	Slice sk = Slice(ks, k.size()-8);
+
+	while (iiter->Valid()) {
+	    Slice handle_value = iiter->value();
+	      FilterBlockReader* filter = rep_->secondary_filter;
+	      BlockHandle handle;
+	      //std::vector<std::string> x ;
+	      Slice key, value;
+	      if(iterInterval->Valid())
+	      {
+	    	  key = iterInterval->key();
+	    	  value = iterInterval->value();
+
+	      }
+	      //outputFile<<(filter != NULL)<<endl;//(!filter->KeyMayMatch(handle.offset(), k));//(handle.DecodeFrom(&handle_value).ok());
+	      if(startk.compare(value)>0 || endk.compare(key) <0 )
+			{
+			  //cout<<"Prune Interval\n";
+			}
+
+	      else {
+
+	        //outputFile<<"true\n";
+
+	    	  Iterator* block_iter = BlockReader(this, options, iiter->value());
+			block_iter->SeekToFirst();
+			  while(block_iter->Valid()) {
+				bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
+				block_iter->Next();
+			  }
+			  s = block_iter->status();
+			  delete block_iter;
+
+
+	      }
+
+	      iiter->Next();
+	      iterInterval->Next();
+	  }
+
+
+
+	  if (s.ok()) {
+	    s = iiter->status();
+	  }
+	  delete iiter;
+	  delete iterInterval;
+	  //outputFile.close();
+	  return s;
+}
+
 
 Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,

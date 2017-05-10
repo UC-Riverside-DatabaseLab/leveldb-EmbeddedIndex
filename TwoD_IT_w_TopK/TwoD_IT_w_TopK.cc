@@ -23,7 +23,7 @@ elems.push_back(item1);
 
 std::getline(ss, item2);
 elems.push_back(item2);
-};
+}
 
 
 //
@@ -34,7 +34,7 @@ if (a>b) {
 }
 
 return b;
-};
+}
 
 
 //
@@ -52,7 +52,7 @@ else {
 }
 
 return c;
-};
+}
 
 
 //
@@ -74,14 +74,14 @@ iterator = nullptr;
 storage.reserve(1000000);
 
 //std::ofstream o1("perf.log");
-};
+}
 
 
 //
 TwoDITwTopK::TwoDITwTopK() {
 
 setDefaults();
-};
+}
 
 
 //
@@ -121,7 +121,7 @@ if (sync_from_file) {
     ifile.close();
   }
 }
-};
+}
 
 
 //
@@ -129,8 +129,7 @@ TwoDITwTopK::~TwoDITwTopK() {
 
 sync();
 treeDestroy(root);
-};
-
+}
 
 //
 void TwoDITwTopK::insertInterval(const std::string &id, const std::string &minKey, const std::string &maxKey, const uint64_t &maxTimestamp) {
@@ -379,7 +378,7 @@ if (x != &nil) {
            <<","<<(x->is_red ? 'R' : 'B')<<","<<depth<<")";
   treePrintInOrderRecursive(x->right, depth + 1);
 }
-};
+}
 
 
 //
@@ -485,7 +484,7 @@ z->right = &nil;
 z->is_red = true;
 
 treeInsertFixup(z);
-};
+}
 
 
 //
@@ -532,7 +531,7 @@ while (z->parent->is_red) {
 }
 
 root->is_red = false;
-};
+}
 
 
 //
@@ -573,7 +572,7 @@ if (!y_orig_is_red)
   treeDeleteFixup(x);
 
 delete z;
-};
+}
 
 
 //
@@ -636,7 +635,7 @@ while (x != root and !x->is_red) {
 }
 
 x->is_red = false;
-};
+}
 
 
 //
@@ -646,7 +645,7 @@ while (x->left != &nil)
   x = x->left;
 
 return x;
-};
+}
 
 
 //
@@ -663,7 +662,7 @@ while (y != &nil and x == y->right) {
 }
 
 return y;
-};
+}
 
 
 //
@@ -689,7 +688,7 @@ x->parent = y;
 y->max_high = x->max_high;
 y->max_timestamp = x->max_timestamp;
 treeSetMaxFields(x);
-};
+}
 
 
 //
@@ -715,7 +714,7 @@ x->parent = y;
 y->max_high = x->max_high;
 y->max_timestamp = x->max_timestamp;
 treeSetMaxFields(x);
-};
+}
 
 
 //
@@ -729,7 +728,7 @@ else
   u->parent->right = v;
 
 v->parent = u->parent;
-};
+}
 
 
 //
@@ -750,7 +749,7 @@ while (x != &nil) {
   
   x = x->parent;
 }
-};
+}
 
 
 //
@@ -774,7 +773,7 @@ else
     x->max_high = x->interval.GetHighPoint();
     x->max_timestamp = x->interval.GetTimeStamp();
   }
-};
+}
 
 
 //
@@ -787,7 +786,7 @@ if (x->right != &nil)
   treeDestroy(x->right);
 
 delete x;
-};
+}
 
 
 //
@@ -797,7 +796,7 @@ if (a.second < b.second)
   return true;
 
 return false;
-};
+}
 
 
 //
@@ -808,7 +807,7 @@ _ret_int = &ret_int;
 
 if(!start(min, max))
   std::cerr<<std::endl<<"Start failure: Interval tree is either empty or locked by another iterator."<<std::endl;
-};
+}
 
 
 //
@@ -819,7 +818,7 @@ if (iterator_in_use) {
   _it->iterator = nullptr;
   _it->iterator_in_use = false;
 }
-};
+}
 
 
 //
@@ -876,15 +875,14 @@ if (iterator_in_use) {
 }
 
 return false;
-};
-
+}
 
 //
 void TopKIterator::restart(const std::string &min, const std::string &max) {
 
 stop(false);
 start(min, max);
-};
+}
 
 
 //
@@ -901,7 +899,7 @@ if (iterator_in_use) {
   explored.clear();
   iterator_in_use = false;
 }
-};
+}
 
 
 //
@@ -921,6 +919,5 @@ if (_it->root != &(_it->nil) and !(_it->iterator_in_use)) {
 }
 
 return false;
-};
-
+}
 

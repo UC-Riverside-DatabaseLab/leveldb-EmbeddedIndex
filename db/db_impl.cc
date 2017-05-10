@@ -1272,9 +1272,10 @@ Status DBImpl::Get(const ReadOptions& options,
     
     if(kNoOfOutputs>(int)(value->size()))
     {
-        //outputFile<<"sstget\n";
-        s = current->RangeLookUp(options, startSkey.ToString(), endSkey.ToString(), value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound, this, snapshot);
-        //outputFile<<"in\n";
+    	if(this->options_.IntervalTreeFileName.empty())
+    		s = current->EmbeddedRangeLookUp(options, startSkey.ToString(), endSkey.ToString(), value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound, this, snapshot);
+    	else
+    		s = current->RangeLookUp(options, startSkey.ToString(), endSkey.ToString(), value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound, this, snapshot);
     }
      
     

@@ -82,7 +82,7 @@ class TableBuilder {
 
   struct Rep;
   Rep* rep_;
-  
+  int count;
   TwoDITwTopK* intervalTree_;
   uint64_t fileNumber;
   // No copying allowed

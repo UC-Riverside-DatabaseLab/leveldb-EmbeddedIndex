@@ -60,6 +60,14 @@ class Footer {
     index_handle_ = h;
   }
 
+  // The block handle for the index block of the table
+    const BlockHandle& interval_handle() const {
+      return interval_handle_;
+    }
+    void set_interval_handle(const BlockHandle& h) {
+    	interval_handle_ = h;
+    }
+
   void EncodeTo(std::string* dst) const;
   Status DecodeFrom(Slice* input);
 
@@ -67,12 +75,13 @@ class Footer {
   // Footer will always occupy exactly this many bytes.  It consists
   // of two block handles and a magic number.
   enum {
-    kEncodedLength = 2*BlockHandle::kMaxEncodedLength + 8
+    kEncodedLength = 3*BlockHandle::kMaxEncodedLength + 8
   };
 
  private:
   BlockHandle metaindex_handle_;
   BlockHandle index_handle_;
+  BlockHandle interval_handle_;
 };
 
 // kTableMagicNumber was picked by running

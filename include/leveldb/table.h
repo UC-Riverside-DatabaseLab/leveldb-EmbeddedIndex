@@ -86,6 +86,14 @@ class Table {
                             void* arg,
   						  bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db) ;
 
+  Status InternalGetWithInterval(const ReadOptions& options, const Slice& k,
+                            void* arg,
+                            bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db);
+
+  Status RangeInternalGetWithInterval(const ReadOptions& options, const Slice& startk, const Slice& endk,
+                            void* arg,
+                            bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db), string secKey,int topKOutput,DBImpl* db);
+
   void ReadMeta(const Footer& footer);
   void ReadFilter(const Slice& filter_handle_value);
   void ReadSecondaryFilter(const Slice& filter_handle_value);

@@ -492,7 +492,7 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
 						//outputFile<< "Push2: "<< std::endl;
 						newVal.Pop(s->value);
 						newVal.Push(s->value,newVal);
-						cout<<"Inserted 2\n";
+						//cout<<"Inserted 2\n";
 					   // s->resultSetofKeysFound->insert(ukey.ToString());
 					   // s->resultSetofKeysFound->erase(s->resultSetofKeysFound->find(s->value->front().key));
 					}
@@ -785,27 +785,140 @@ Status Version::Get(const ReadOptions& options,
       return s;
 }
 
+Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
+                    std::string startk,
+                    std::string endk,
+                   std::vector<SKeyReturnVal>* value,
+                   GetStats* stats,string secKey, int kNoOfOutputs, std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot)
+{
 
+	  //Slice ikey = k.internal_key();
+	  //Slice user_key = k.user_key();
+	  const Comparator* ucmp = vset_->icmp_.user_comparator();
+	  Status s;
+
+	  stats->seek_file = NULL;
+	  stats->seek_file_level = -1;
+	  FileMetaData* last_file_read = NULL;
+	  int last_file_read_level = -1;
+
+	  // We can search level-by-level since entries never hop across
+	  // levels.  Therefore we are guaranteed that if we find data
+	  // in an smaller level, later levels are irrelevant.
+	  std::vector<FileMetaData*> tmp;
+	  FileMetaData* tmp2;
+	  int valueSize = 0;
+	  for (int level = 0; level < config::kNumLevels; level++) {
+	    size_t num_files = files_[level].size();
+	    if (num_files == 0) continue;
+
+	    // Get the list of files to search in this level
+	    FileMetaData* const* files = &files_[level][0];
+	    //if (level == 0) {
+	      // Level-0 files may overlap each other.  Find all files that
+	      // overlap user_key and process them in order from newest to oldest.
+	      tmp.reserve(num_files);
+	      for (uint32_t i = 0; i < num_files; i++) {
+	        FileMetaData* f = files[i];
+	        //if (ucmp->Compare(user_key, f->smallest.user_key()) >= 0 &&
+	        //    ucmp->Compare(user_key, f->largest.user_key()) <= 0) {
+	          tmp.push_back(f);
+	        //}
+	      }
+	      if (tmp.empty()) continue;
+
+	      std::sort(tmp.begin(), tmp.end(), NewestFirst);
+	      files = &tmp[0];
+	      num_files = tmp.size();
+	    //}
+	    /*else {
+	      // Binary search to find earliest index whose largest key >= ikey.
+	      uint32_t index = FindFile(vset_->icmp_, files_[level], ikey);
+	      if (index >= num_files) {
+	        files = NULL;
+	        num_files = 0;
+	      } else {
+	        tmp2 = files[index];
+	        if (ucmp->Compare(user_key, tmp2->smallest.user_key()) < 0) {
+	          // All of "tmp2" is past any data for user_key
+	          files = NULL;
+	          num_files = 0;
+	        } else {
+	          files = &tmp2;
+	          num_files = 1;
+	        }
+	      }
+	    }
+	     *
+	        */
+	      //outputFile<<num_files<<endl;
+	    for (uint32_t i = 0; i < num_files; ++i) {
+	      if (last_file_read != NULL && stats->seek_file == NULL) {
+	        // We have had more than one seek for this read.  Charge the 1st file.
+	        stats->seek_file = last_file_read;
+	        stats->seek_file_level = last_file_read_level;
+	      }
+
+	      FileMetaData* f = files[i];
+	      last_file_read = f;
+	      last_file_read_level = level;
+
+
+//	      SecSaver saver;
+//	      saver.state = kNotFound;
+//	      saver.ucmp = ucmp;
+//	      saver.user_key = user_key;
+//	      saver.value = value;
+//	      saver.resultSetofKeysFound = resultSetofKeysFound;
+//	      s = vset_->table_cache_->Get(options, f->number, f->file_size,
+//	                                   ikey, &saver, &SecSaveValue, secKey,kNoOfOutputs,db);
+
+	      RangeSecSaver saver;
+		saver.state = kNotFound;
+		saver.ucmp = ucmp;
+		saver.start_user_key = startk;
+		saver.end_user_key = endk;
+		saver.value = value;
+		saver.resultSetofKeysFound = resultSetofKeysFound;
+		s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, startk, endk,
+	      									  &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
+
+	    }
+
+	      if((int)value->size()>=kNoOfOutputs){
+	        //std::sort(value->begin(), value->end(), NewestFirstSequenceNumber);
+	        //value->erase(value->begin()+kNoOfOutputs,value->end());
+
+	        return s;
+	      }
+
+	      //valueSize = value->size();
+
+	  }
+
+
+	  //std::sort(value->begin(), value->end(), NewestFirstSequenceNumber);
+	  if(value->size()==0)
+	        return Status::NotFound(Slice());  // Use an empty error message for speed
+	  else
+	      return s;
+}
   Status Version::RangeLookUp(const ReadOptions& options,
                      std::string startk,
                      std::string endk,
                     std::vector<SKeyReturnVal>* value,
                     GetStats* stats,string secKey, int kNoOfOutputs, std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot) {
 
+
 	const Comparator* ucmp = vset_->icmp_.user_comparator();
     Status s;
 
     stats->seek_file = NULL;
     stats->seek_file_level = -1;
-    FileMetaData* last_file_read = NULL;
-    int last_file_read_level = -1;
    
   
     std::map< std::string ,  FileMetaData*> filenoToMetaMap;
 
-
-    FileMetaData* tmp2;
-    int valueSize = 0;
   
     for (int level = 0; level < config::kNumLevels; level++) 
     {
@@ -822,71 +935,7 @@ Status Version::Get(const ReadOptions& options,
       
    //std::vector<TwoDInterval> intervals;
     TwoDITwTopK* itree = this->vset_->table_cache_->getIntervalTree();
-    /*
-    TwoDInterval interval;
-    TopKIterator it(*itree, interval, startk, endk); // Locks a for inserts, deletes and iteration by other iterators
-    // Top 2 intervals:
-    int index = 0;
-    while(!it.next())
-    {
-         //if (index++ > kNoOfOutputs)
-            //break;  
-         index++; 
-          if(kNoOfOutputs <= (int)(value->size()) && value->front().sequence_number > interval.GetTimeStamp()){
-              //outputFile<<index<<"\n";
-            it.stop(); 
-            return s;
-        }
-        
-        std::stringstream ss(interval.GetId());
-        std::string item1, item2;
 
-        std::list<std::string> elems;
-        std::getline(ss, item1, '+');
-        elems.push_back(item1);
-
-        std::getline(ss, item2);
-        elems.push_back(item2);
-        
-        //outputFile<<index<<" ("<<interval.GetId()<<", "<<interval.GetLowPoint()<<", "<<interval.GetHighPoint()<<", "<<interval.GetTimeStamp()<<" ) "<<item1<< " "<< item2<<std::endl;
-
-       
-        std::map<string,FileMetaData*>::iterator itf; 
-        //outputFile<<"("<<it->GetId()<<", "<<it->GetLowPoint()<<", "<<it->GetHighPoint()<<", "<<it->GetMaxTimeStamp()<<" )"<<elems.front()<<std::endl;
-        
-        itf = filenoToMetaMap.find(elems.front());
-        if(itf == filenoToMetaMap.end())
-            continue;
-        
-       
-        FileMetaData* f = itf->second;
-        
-       
-      //outputFile<<elems.back()<<" \n";  
-      LookupKey blockkey(elems.back(), snapshot);  
-      RangeSecSaver saver;
-      saver.state = kNotFound;
-      saver.ucmp = ucmp;
-      saver.start_user_key = startk;
-      saver.end_user_key = endk;
-      saver.value = value;
-      saver.resultSetofKeysFound = resultSetofKeysFound;
-    //  outputFile<<"FileNumber: "<<f->number<<" & blockkey = "<<blockkey.internal_key().ToString()<<"\n";
-      s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, blockkey.internal_key(), 
-                                  &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
-      //outputFile<<"done\n";
-     
-        
-      //if(index==3)
-          //break;
-        
-
-    }
-    //outputFile<<index<<"\n";
-    it.stop();
-    */
-    
-    //return s;
     std::vector<TwoDInterval> intervals;
     itree->topK(intervals, startk, endk);
 
@@ -2006,10 +2055,12 @@ void Compaction::AddInputDeletions(VersionEdit* edit) {
   for (int which = 0; which < 2; which++) {
     for (size_t i = 0; i < inputs_[which].size(); i++) {
       edit->DeleteFile(level_ + which, inputs_[which][i]->number);
-      
-      TwoDITwTopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
-      itree->deleteAllIntervals(SSTR(inputs_[which][i]->number));
-      itree->sync();
+      if(this->input_version_->vset_->options_->IntervalTreeFileName.empty())
+      {
+		  TwoDITwTopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
+		  itree->deleteAllIntervals(SSTR(inputs_[which][i]->number));
+		  itree->sync();
+      }
     }
   }
 }

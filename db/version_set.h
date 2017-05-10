@@ -84,6 +84,12 @@ class Version {
                     const std::string endk,
                     std::vector<SKeyReturnVal>* value,
                     GetStats* stats,string secKey, int kNoOfOutputs,std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot);
+  Status EmbeddedRangeLookUp(const ReadOptions& options,
+                       std::string startk,
+                       std::string endk,
+                      std::vector<SKeyReturnVal>* value,
+                      GetStats* stats,string secKey, int kNoOfOutputs, std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot);
+
   // Adds "stats" into the current state.  Returns true if a new
   // compaction may need to be triggered, false otherwise.
   // REQUIRES: lock is held

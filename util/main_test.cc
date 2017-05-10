@@ -19,7 +19,7 @@ using namespace std;
 static string database = "/home/mohiuddin/Desktop/LevelDB_Correctness_Testing/DB/Embedded_Write_UserID_Sec100_K5";
 static string benchmark_file = "/home/mohiuddin/Desktop/LevelDB_Correctness_Testing/Benchmarks/NYTweetsUserIDRangerw19";
 static string result_file = "/home/mohiuddin/Desktop/LevelDB_Correctness_Testing/Results/Embedded_Write_UserID_Sec100_K5.csv";
-
+static int isintervaltree = false;
 //static int numberofiterations = 2;
 
 static long LOG_POINT = 10000;
@@ -56,7 +56,10 @@ void testWithBenchMark()
     options.secondaryAtt = "UserID";
     //options.secondaryAtt = "Hashtags";
     options.create_if_missing = true;
-	options.IntervalTreeFileName = "./interval_tree";
+    if(isintervaltree)
+    	options.IntervalTreeFileName = "./interval_tree";
+    else
+    	options.IntervalTreeFileName ="";
 
     leveldb::Status status = leveldb::DB::Open(options, database, &db);
     assert(status.ok());
@@ -126,16 +129,16 @@ void testWithBenchMark()
             	}
             	{
 
-            		leveldb::Slice ekey = x[3];
-            		gettimeofday(&start, NULL);
-            		leveldb::Status s = db->RangeLookUp(roptions, x[2] ,x[2] , &svalues, topk);
-					gettimeofday(&end, NULL);
-					durationRST+= ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
-					int size = svalues.size();
-					rstcount+=size;
-					if(svalues.size()>0) {
-						svalues.clear();
-					}
+//            		leveldb::Slice ekey = x[3];
+//            		gettimeofday(&start, NULL);
+//            		leveldb::Status s = db->RangeLookUp(roptions, x[2] ,x[2] , &svalues, topk);
+//					gettimeofday(&end, NULL);
+//					durationRST+= ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
+//					int size = svalues.size();
+//					rstcount+=size;
+//					if(svalues.size()>0) {
+//						svalues.clear();
+//					}
 					rst++;
             	}
                 //ofile1<<rs<<", "<<size<<endl;

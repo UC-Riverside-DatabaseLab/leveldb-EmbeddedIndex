@@ -36,7 +36,10 @@ TableCache::TableCache(const std::string& dbname,
       dbname_(dbname),
       options_(options),
       cache_(NewLRUCache(entries)) {
-    intervalTree_ = new TwoDITwTopK(dbname+"/"+options->IntervalTreeFileName, true);
+	if(!options->IntervalTreeFileName.empty())
+		intervalTree_ = new TwoDITwTopK(dbname+"/"+options->IntervalTreeFileName, true);
+	else
+		intervalTree_ = NULL;
 }
 
 TableCache::~TableCache() {
@@ -132,7 +135,11 @@ Status TableCache::Get(const ReadOptions& options,
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {
     Table* t = reinterpret_cast<TableAndFile*>(cache_->Value(handle))->table;
-    s = t->InternalGet(options, k, arg, saver ,secKey, topKOutput, db);
+    if(this->options_->IntervalTreeFileName.empty())
+    	s = t->InternalGetWithInterval(options, k, arg, saver ,secKey, topKOutput, db);
+    else
+    	s = t->InternalGet(options, k, arg, saver ,secKey, topKOutput, db);
+
     cache_->Release(handle);
   }
   else
@@ -154,7 +161,8 @@ Status TableCache::Get(const ReadOptions& options,
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {
     Table* t = reinterpret_cast<TableAndFile*>(cache_->Value(handle))->table;
-    s = t->InternalGet(options, blockKey, k, arg, saver ,secKey, topKOutput, db);
+
+    	s = t->InternalGet(options, blockKey, k, arg, saver ,secKey, topKOutput, db);
     cache_->Release(handle);
   }
   else
@@ -163,6 +171,31 @@ Status TableCache::Get(const ReadOptions& options,
   }
   return s;
 }
+
+
+Status TableCache::RangeLookUp(const ReadOptions& options,
+                       uint64_t file_number,
+                       uint64_t file_size,
+                       const Slice& startk, const Slice& endk,
+                       void* arg,
+					   bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
+                       string secKey,int topKOutput, DBImpl* db) {
+  Cache::Handle* handle = NULL;
+  Status s = FindTable(file_number, file_size, &handle);
+  if (s.ok()) {
+    Table* t = reinterpret_cast<TableAndFile*>(cache_->Value(handle))->table;
+    //if(this->options_->IntervalTreeFileName.empty())
+    	s = t->RangeInternalGetWithInterval(options, startk, endk, arg, saver ,secKey, topKOutput, db);
+
+    cache_->Release(handle);
+  }
+  else
+  {
+	  cout<<"file not found!"<<endl;
+  }
+  return s;
+}
+
 
 Status TableCache::RangeLookUp(const ReadOptions& options,
                        uint64_t file_number,
