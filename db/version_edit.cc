@@ -82,6 +82,8 @@ void VersionEdit::EncodeTo(std::string* dst) const {
     PutVarint64(dst, f.file_size);
     PutLengthPrefixedSlice(dst, f.smallest.Encode());
     PutLengthPrefixedSlice(dst, f.largest.Encode());
+    PutLengthPrefixedSlice(dst, Slice(f.smallest_sec.c_str()));
+    PutLengthPrefixedSlice(dst, Slice(f.largest_sec.c_str()));
   }
 }
 

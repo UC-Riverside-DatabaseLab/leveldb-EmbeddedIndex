@@ -60,7 +60,7 @@ class Footer {
     index_handle_ = h;
   }
 
-  // The block handle for the index block of the table
+  // The block handle for the interval block of the table
     const BlockHandle& interval_handle() const {
       return interval_handle_;
     }
@@ -68,14 +68,14 @@ class Footer {
     	interval_handle_ = h;
     }
 
-  void EncodeTo(std::string* dst) const;
-  Status DecodeFrom(Slice* input);
+  void EncodeTo(std::string* dst,  bool interval) const;
+  Status DecodeFrom(Slice* input, bool interval);
 
   // Encoded length of a Footer.  Note that the serialization of a
   // Footer will always occupy exactly this many bytes.  It consists
   // of two block handles and a magic number.
   enum {
-    kEncodedLength = 3*BlockHandle::kMaxEncodedLength + 8
+    kEncodedLength = 2*BlockHandle::kMaxEncodedLength + 8
   };
 
  private:

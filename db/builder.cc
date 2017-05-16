@@ -32,7 +32,8 @@ Status BuildTable(const std::string& dbname,
       return s;
     }
 
-    TableBuilder* builder = new TableBuilder(options, file, table_cache->getIntervalTree(), meta->number);
+
+    TableBuilder* builder = new TableBuilder(options, file, table_cache->getIntervalTree(), meta->number, &meta->smallest_sec, &meta->largest_sec);
     meta->smallest.DecodeFrom(iter->key());
     for (; iter->Valid(); iter->Next()) {
       Slice key = iter->key();

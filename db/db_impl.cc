@@ -67,6 +67,9 @@ struct DBImpl::CompactionState {
     uint64_t number;
     uint64_t file_size;
     InternalKey smallest, largest;
+
+    std::string smallest_sec;       // Smallest sec key served by table
+    std::string largest_sec;        // Largest sec key served by table
   };
   std::vector<Output> outputs;
 
@@ -493,7 +496,7 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
       level = base->PickLevelForMemTableOutput(min_user_key, max_user_key);
     }
     edit->AddFile(level, meta.number, meta.file_size,
-                  meta.smallest, meta.largest);
+                  meta.smallest, meta.largest, meta.smallest_sec, meta.largest_sec);
   }
 
   CompactionStats stats;
@@ -692,13 +695,13 @@ Status DBImpl::BackgroundCompaction() {
   if (c == NULL) {
     // Nothing to do
   } else if (!is_manual && c->IsTrivialMove()) {
-	  cout<<"trivial\n";
+	  //cout<<"trivial\n";
     // Move file to next level
     assert(c->num_input_files(0) == 1);
     FileMetaData* f = c->input(0, 0);
     c->edit()->DeleteFile(c->level(), f->number);
     c->edit()->AddFile(c->level() + 1, f->number, f->file_size,
-                       f->smallest, f->largest);
+                       f->smallest, f->largest, f->smallest_sec, f->largest_sec);
     status = versions_->LogAndApply(c->edit(), &mutex_);
     VersionSet::LevelSummaryStorage tmp;
     Log(options_.info_log, "Moved #%lld to level-%d %lld bytes %s: %s\n",
@@ -709,7 +712,7 @@ Status DBImpl::BackgroundCompaction() {
         versions_->LevelSummary(&tmp));
   } else {
     CompactionState* compact = new CompactionState(c);
-    cout<<"compaction\n";
+    //cout<<"compaction\n";
     status = DoCompactionWork(compact);
     CleanupCompaction(compact);
     c->ReleaseInputs();
@@ -782,7 +785,7 @@ Status DBImpl::OpenCompactionOutputFile(CompactionState* compact) {
   std::string fname = TableFileName(dbname_, file_number);
   Status s = env_->NewWritableFile(fname, &compact->outfile);
   if (s.ok()) {
-    compact->builder = new TableBuilder(options_, compact->outfile, table_cache_->getIntervalTree(), file_number);
+    compact->builder = new TableBuilder(options_, compact->outfile, table_cache_->getIntervalTree(), file_number, &compact->current_output()->smallest_sec, &compact->current_output()->largest_sec);
   }
   return s;
 }
@@ -855,7 +858,7 @@ Status DBImpl::InstallCompactionResults(CompactionState* compact) {
     const CompactionState::Output& out = compact->outputs[i];
     compact->compaction->edit()->AddFile(
         level + 1,
-        out.number, out.file_size, out.smallest, out.largest);
+        out.number, out.file_size, out.smallest, out.largest, out.smallest_sec, out.largest_sec);
   }
   return versions_->LogAndApply(compact->compaction->edit(), &mutex_);
 }

@@ -80,7 +80,9 @@ struct TableBuilder::Rep {
   }
 };
 
-TableBuilder::TableBuilder(const Options& options, WritableFile* file, TwoDITwTopK* intervalTree, uint64_t fileN)
+TableBuilder::TableBuilder(const Options& options, WritableFile* file, TwoDITwTopK* intervalTree,
+		 uint64_t fileNumber, std::string* minsec, std::string* maxsec)
+
     : rep_(new Rep(options, file)) {
   if (rep_->filter_block != NULL) {
     rep_->filter_block->StartBlock(0);
@@ -88,9 +90,11 @@ TableBuilder::TableBuilder(const Options& options, WritableFile* file, TwoDITwTo
   if (rep_->secondary_filter_block != NULL) {
     rep_->secondary_filter_block->StartBlock(0);
   }
-  count = 0;
+
   intervalTree_ = intervalTree;
-  fileNumber =  fileN;
+  this->fileNumber =  fileNumber;
+  this->smallest_sec = minsec;
+  this->largest_sec = maxsec;
 }
 
 TableBuilder::~TableBuilder() {
@@ -143,6 +147,21 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
 	  }
 	  //cout<<SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ) <<" ,min: "<< rep_->minSecValue <<" ,max: "<< rep_->maxSecValue<<" ,seqno: "<< rep_->maxSecSeqNumber<<std::endl;
 
+    if(smallest_sec->empty())
+    {
+    	*smallest_sec = rep_->minSecValue;
+    	*largest_sec = rep_->maxSecValue;
+    }
+    else {
+    	if(this->smallest_sec->compare(rep_->minSecValue)>0)
+		{
+			*this->smallest_sec = rep_->minSecValue;
+		}
+    	else if(this->largest_sec->compare(rep_->maxSecValue)<0)
+		{
+    		*this->largest_sec = rep_->maxSecValue;
+		}
+    }
 
 	rep_->minSecValue= "";
 	rep_->maxSecValue= "";
@@ -233,6 +252,10 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
   }
 
 
+  if(rep_->minSecValue== "" || rep_->minSecValue.compare(sKey.str())>0)
+  {
+      rep_->minSecValue = sKey.str();
+  }
 
   /*ParsedInternalKey parsed_key;
   if (!ParseInternalKey(key, &parsed_key)) {
@@ -403,6 +426,23 @@ Status TableBuilder::Finish() {
 
     		r->interval_block.Add(inKey, value);
     	}
+
+    	if(smallest_sec->empty())
+		{
+			*smallest_sec = rep_->minSecValue;
+			*largest_sec = rep_->maxSecValue;
+		}
+		else {
+			if(this->smallest_sec->compare(rep_->minSecValue)>0)
+			{
+				*this->smallest_sec = rep_->minSecValue;
+			}
+			else if(this->largest_sec->compare(rep_->maxSecValue)<0)
+			{
+				*this->largest_sec = rep_->maxSecValue;
+			}
+		}
+
 	  //outputFile<<SSTR(fileNumber)+"+"+ r->last_key.substr(0, r->last_key.size() - 8 )<<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
 		rep_->minSecValue= "";
 		rep_->maxSecValue= "";
@@ -436,12 +476,13 @@ Status TableBuilder::Finish() {
     Footer footer;
     footer.set_metaindex_handle(metaindex_block_handle);
     footer.set_index_handle(index_block_handle);
-    if(r->options.IntervalTreeFileName.empty())
+    bool isinterval = r->options.IntervalTreeFileName.empty();
+    if(isinterval)
 	  {
     	footer.set_interval_handle(interval_block_handle);
 	  }
     std::string footer_encoding;
-    footer.EncodeTo(&footer_encoding);
+    footer.EncodeTo(&footer_encoding, isinterval);
     r->status = r->file->Append(footer_encoding);
     if (r->status.ok()) {
       r->offset += footer_encoding.size();

@@ -29,7 +29,7 @@ class TableBuilder {
   // Create a builder that will store the contents of the table it is
   // building in *file.  Does not close the file.  It is up to the
   // caller to close the file after calling Finish().
-  TableBuilder(const Options& options, WritableFile* file, TwoDITwTopK* intervalTree, uint64_t fileNumber);
+  TableBuilder(const Options& options, WritableFile* file, TwoDITwTopK* intervalTree, uint64_t fileNumber, std::string* minsec, std::string* maxsec);
 
   // REQUIRES: Either Finish() or Abandon() has been called.
   ~TableBuilder();
@@ -85,6 +85,8 @@ class TableBuilder {
   int count;
   TwoDITwTopK* intervalTree_;
   uint64_t fileNumber;
+  std::string* smallest_sec;
+  std::string* largest_sec;
   // No copying allowed
   TableBuilder(const TableBuilder&);
   void operator=(const TableBuilder&);

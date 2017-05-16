@@ -690,7 +690,7 @@ Status Version::Get(const ReadOptions& options,
   int valueSize = 0;
   for (int level = 0; level < config::kNumLevels; level++) {
     size_t num_files = files_[level].size();
-    if (num_files == 0) continue;
+    //if (num_files == 0) continue;
 
     // Get the list of files to search in this level
     FileMetaData* const* files = &files_[level][0];
@@ -700,10 +700,13 @@ Status Version::Get(const ReadOptions& options,
       tmp.reserve(num_files);
       for (uint32_t i = 0; i < num_files; i++) {
         FileMetaData* f = files[i];
-        //if (ucmp->Compare(user_key, f->smallest.user_key()) >= 0 &&
-        //    ucmp->Compare(user_key, f->largest.user_key()) <= 0) {
+        tmp.push_back(f);
+        if (ucmp->Compare(user_key, Slice(f->smallest_sec.c_str())) >= 0 &&
+            ucmp->Compare(user_key, Slice(f->largest_sec.c_str())) <= 0) {
           tmp.push_back(f);
-        //}
+        }
+//        else
+//        	cout<<"Prune File in Lookup\n";
       }
       if (tmp.empty()) continue;
 
@@ -820,10 +823,14 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
 	      tmp.reserve(num_files);
 	      for (uint32_t i = 0; i < num_files; i++) {
 	        FileMetaData* f = files[i];
-	        //if (ucmp->Compare(user_key, f->smallest.user_key()) >= 0 &&
-	        //    ucmp->Compare(user_key, f->largest.user_key()) <= 0) {
-	          tmp.push_back(f);
-	        //}
+	        if (startk.compare(f->largest_sec) > 0 ||
+	                    endk.compare(f->smallest_sec) < 0) {
+	        	cout<<"Prune File Interval\n";
+	                }
+	        else
+	        	tmp.push_back(f);
+
+
 	      }
 	      if (tmp.empty()) continue;
 
@@ -1674,7 +1681,7 @@ Status VersionSet::WriteSnapshot(log::Writer* log) {
     const std::vector<FileMetaData*>& files = current_->files_[level];
     for (size_t i = 0; i < files.size(); i++) {
       const FileMetaData* f = files[i];
-      edit.AddFile(level, f->number, f->file_size, f->smallest, f->largest);
+      edit.AddFile(level, f->number, f->file_size, f->smallest, f->largest, f->smallest_sec, f->largest_sec);
     }
   }
 

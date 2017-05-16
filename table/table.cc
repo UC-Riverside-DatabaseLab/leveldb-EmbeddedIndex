@@ -68,21 +68,29 @@ Status Table::Open(const Options& options,
                    RandomAccessFile* file,
                    uint64_t size,
                    Table** table) {
-    
+
+	  bool isinterval = options.IntervalTreeFileName.empty();
+	  int footerlength;
+	  if(isinterval)
+		  footerlength = Footer::kEncodedLength + BlockHandle::kMaxEncodedLength;
+	  else
+		  footerlength = Footer::kEncodedLength;
     
   *table = NULL;
-  if (size < Footer::kEncodedLength) {
+  if (size < footerlength) {
     return Status::InvalidArgument("file is too short to be an sstable");
   }
 
-  char footer_space[Footer::kEncodedLength];
+
+  char footer_space[footerlength];
   Slice footer_input;
-  Status s = file->Read(size - Footer::kEncodedLength, Footer::kEncodedLength,
+  Status s = file->Read(size - footerlength, footerlength,
                         &footer_input, footer_space);
   if (!s.ok()) return s;
 
   Footer footer;
-  s = footer.DecodeFrom(&footer_input);
+
+  s = footer.DecodeFrom(&footer_input,isinterval );
   if (!s.ok()) return s;
 
   // Read the index block
@@ -97,8 +105,8 @@ Status Table::Open(const Options& options,
 
   // Read the interval block
   Block* interval_block = NULL;
-  Rep* rep = new Table::Rep;
-  if(rep->options.IntervalTreeFileName.empty())
+
+  if(isinterval)
   {
 	BlockContents contents;
 
@@ -109,6 +117,8 @@ Status Table::Open(const Options& options,
 	  }
 	}
   }
+
+  Rep* rep = new Table::Rep;
 
   if (s.ok()) {
     // We've successfully read the footer and the index block: we're
