@@ -21,6 +21,14 @@ struct Options;
 class RandomAccessFile;
 struct ReadOptions;
 class TableCache;
+class IOStat;
+
+
+extern IOStat pr_iostat;
+extern IOStat sr_iostat;
+extern IOStat sr_range_iostat;
+extern IOStat w_iostat;
+
 
 // A Table is a sorted map from strings to strings.  Tables are
 // immutable and persistent.  A Table may be safely accessed from
@@ -73,7 +81,7 @@ class Table {
   Status InternalGet(
       const ReadOptions&, const Slice& key,
       void* arg,
-      void (*handle_result)(void* arg, const Slice& k, const Slice& v));
+	  bool (*handle_result)(void* arg, const Slice& k, const Slice& v));
   Status InternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
                           bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db) ;

@@ -73,6 +73,7 @@ class Version {
     FileMetaData* seek_file;
     int seek_file_level;
   };
+
   Status Get(const ReadOptions&, const LookupKey& key, std::string* val,
              GetStats* stats);
   Status Get(const ReadOptions& options,
@@ -89,6 +90,10 @@ class Version {
                        std::string endk,
                       std::vector<SKeyReturnVal>* value,
                       GetStats* stats,string secKey, int kNoOfOutputs, std::unordered_set<std::string>* resultSetofKeysFound, DBImpl *db, SequenceNumber snapshot);
+
+  bool checkifValid(const ReadOptions& options,
+		  const LookupKey& key,
+		  int& level, GetStats* stats);
 
   // Adds "stats" into the current state.  Returns true if a new
   // compaction may need to be triggered, false otherwise.

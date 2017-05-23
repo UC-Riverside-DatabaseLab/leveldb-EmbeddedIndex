@@ -1081,6 +1081,59 @@ int64_t DBImpl::TEST_MaxNextLevelOverlappingBytes() {
   return versions_->MaxNextLevelOverlappingBytes();
 }
 
+bool DBImpl::checkifValid(const ReadOptions& options,
+		  const Slice& key,
+		  int& level)
+{
+	  Status s;
+	  bool valid = true;
+	  MutexLock l(&mutex_);
+	  SequenceNumber snapshot;
+	  if (options.snapshot != NULL) {
+	    snapshot = reinterpret_cast<const SnapshotImpl*>(options.snapshot)->number_;
+	  } else {
+	    snapshot = versions_->LastSequence();
+	  }
+
+	  MemTable* mem = mem_;
+	  MemTable* imm = imm_;
+	  Version* current = versions_->current();
+	  mem->Ref();
+	  if (imm != NULL) imm->Ref();
+	  current->Ref();
+	  std::string value;
+	  bool have_stat_update = false;
+	  Version::GetStats stats;
+
+	  // Unlock while reading from files and memtables
+	  {
+	    mutex_.Unlock();
+	    // First look in the memtable, then in the immutable memtable (if any).
+	    LookupKey lkey(key, snapshot);
+	    if (mem->Get(lkey, &value, &s)) {
+	      // Done
+	    	valid = false;
+	    } else if (imm != NULL && imm->Get(lkey, &value, &s)) {
+	      // Done
+	    	valid = false;
+	    } else {
+	      valid = current->checkifValid(options, lkey, level,  &stats);
+	      have_stat_update = true;
+	      //valid = false;
+	    }
+	    mutex_.Lock();
+	  }
+
+	  if (have_stat_update && current->UpdateStats(stats)) {
+	    MaybeScheduleCompaction();
+	  }
+	  mem->Unref();
+	  if (imm != NULL) imm->Unref();
+	  current->Unref();
+
+	  return valid;
+
+}
 Status DBImpl::Get(const ReadOptions& options,
                    const Slice& key,
                    std::string* value) {
@@ -1190,7 +1243,13 @@ Status DBImpl::Get(const ReadOptions& options,
     if(kNoOfOutputs>(int)(value->size()))
     {
         //outputFile<<"sstget\n";
+    	//Version::iostat.clear();
+
+    	//iostat.print();
+
         s = current->Get(options, lkey, value, &stats,this->options_.secondaryAtt,kNoOfOutputs,&resultSetofKeysFound,this);
+
+        //iostat.print();
         //outputFile<<"in\n";
     }
     //outputFile<<kNoOfOutputs;
@@ -1203,7 +1262,7 @@ Status DBImpl::Get(const ReadOptions& options,
          //outputFile<<value->size()<<endl;
      }*/
     
-    std::sort_heap(value->begin(),value->end(),NewestFirst);
+    //std::sort_heap(value->begin(),value->end(),NewestFirst);
     //outputFile<<"in\n";
     mutex_.Lock();
     //outputFile<<"in\n";
@@ -1282,7 +1341,7 @@ Status DBImpl::Get(const ReadOptions& options,
     }
      
     
-    std::sort_heap(value->begin(),value->end(),NewestFirst);
+    //std::sort_heap(value->begin(),value->end(),NewestFirst);
     //outputFile<<"in\n";
     mutex_.Lock();
     //outputFile<<"in\n";

@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <set>
+#include <fstream>
 #include "db/dbformat.h"
 #include "db/log_writer.h"
 #include "db/snapshot.h"
@@ -22,6 +23,113 @@ class TableCache;
 class Version;
 class VersionEdit;
 class VersionSet;
+
+//IOStat DB::iostat;
+
+class IOStat {
+public:
+  uint64_t numberofIO;
+  uint64_t cachehit;
+  uint64_t prunebloomfilter;
+  uint64_t bloomfilterFP;
+  uint64_t pruneinterval;
+  uint64_t prunefile;
+  IOStat()
+  {
+	  clear();
+  }
+  void clear()
+  {
+	  numberofIO = 0;
+	  cachehit = 0;
+	  prunebloomfilter = 0;
+	  bloomfilterFP = 0;
+	  pruneinterval = 0;
+	  prunefile = 0;
+  }
+
+  void update(IOStat& newstat)
+  {
+	  numberofIO+=newstat.numberofIO;
+	  cachehit+=newstat.cachehit;
+	  prunebloomfilter+=newstat.prunebloomfilter;
+	  bloomfilterFP+=newstat.bloomfilterFP;
+	  pruneinterval+=newstat.pruneinterval;
+	  prunefile+=newstat.prunefile;
+  }
+  void print()
+  {
+	  //std::cout<<"asdasd";
+	  std::cout<<"IO: "<<this->numberofIO<<std::endl;
+	  std::cout<<"Cache Hit: "<<this->cachehit<<std::endl;
+	  std::cout<<"BF Prune: "<<this->prunebloomfilter<<std::endl;
+	  std::cout<<"BF FP: "<<this->bloomfilterFP<<std::endl;
+	  std::cout<<"RF Prune: "<<this->pruneinterval<<std::endl;
+	  std::cout<<"RF File PRune: "<<this->prunefile<<std::endl;
+
+  }
+  void print(uint64_t numberofop)
+	{
+	  //uint64_t p = 10;
+	  //std::cout<<numberofop/p<<std::endl;
+	  std::cout<<"Total IO: "<<this->numberofIO<<std::endl;
+	  std::cout<<"Avg IO: "<<(double)(this->numberofIO/numberofop)<<std::endl;
+	  if(numberofIO>0)
+	  {
+		  double s = cachehit/numberofIO*100;
+		  std::cout<<"Cache Hit%: "<<s<<std::endl;
+	  }
+	  else
+		  std::cout<<"Cache Hit%: 0"<<std::endl;
+	  std::cout<<"BF Prune: "<<this->prunebloomfilter<<std::endl;
+	  cout.precision(6);
+	  if(this->bloomfilterFP+this->prunebloomfilter>0)
+		  std::cout<<"BF FP%: "<<(double)this->bloomfilterFP/(double)(this->bloomfilterFP+this->prunebloomfilter)*100.0<<std::endl;
+	  else
+		  std::cout<<"BF FP%: 0"<<std::endl;
+	  //cout.precision(3);
+	  std::cout<<"Avg RF Prune: "<<this->pruneinterval/numberofop<<std::endl;
+	  std::cout<<"Avg RF File Prune: "<<this->prunefile/numberofop<<std::endl;
+	}
+
+  void print(uint64_t numberofop, ofstream& ofile, const char *type)
+  	{
+  	  //uint64_t p = 10;
+  	  //std::cout<<numberofop/p<<std::endl;
+	  if(numberofop==0)
+		  ofile<<"Op Type, Total IO, Avg IO, Cache Hit%, BF Prune, BF FP%, Avg RF Prune, Avg RF File Prune\n";
+	  else
+	  {
+		  ofile<<type<<",";
+		  ofile<<this->numberofIO<< "," ;
+
+		  ofile<<(double)(this->numberofIO/numberofop)<<"," ;
+
+		  if(numberofIO>0)
+		  {
+			  double s = cachehit/numberofIO*100;
+
+			  ofile<<s<<"," ;
+		  }
+		  else
+			  ofile<<"0,";
+
+		  ofile<<this->prunebloomfilter<<"," ;
+
+		  //cout.precision(6);
+
+		  if(this->bloomfilterFP+this->prunebloomfilter>0)
+			  ofile<<(double)this->bloomfilterFP/(double)(this->bloomfilterFP+this->prunebloomfilter)*100.0;
+		  else
+			  ofile<<"0,";
+		  //cout.precision(3);
+		  ofile<<this->pruneinterval/numberofop<<",";
+
+		  ofile<<this->prunefile/numberofop<<std::endl;
+	  }
+  	}
+
+};
 
 class DBImpl : public DB {
  public:
@@ -39,6 +147,11 @@ class DBImpl : public DB {
   virtual Status Get(const ReadOptions& options,
                    const Slice& skey,
                    std::vector<SKeyReturnVal>* value,int kNoOfOutputs);
+
+  virtual bool checkifValid(const ReadOptions& options,
+		  const Slice& key,
+		  int& level);
+
   virtual Status RangeLookUp(const ReadOptions& options,
                    const Slice& startSkey, const Slice& endSkey,
                    std::vector<SKeyReturnVal>* value, int kNoOfOutputs);

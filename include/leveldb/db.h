@@ -40,8 +40,9 @@ struct Range {
 };
  
 
+
 struct SKeyReturnVal {
-  std::string key;           
+  std::string key;
   std::string value;
   uint64_t sequence_number;
     static bool comp(const leveldb::SKeyReturnVal& a,const leveldb::SKeyReturnVal& b)
@@ -66,6 +67,7 @@ struct SKeyReturnVal {
 // A DB is a persistent ordered map from keys to values.
 // A DB is safe for concurrent access from multiple threads without
 // any external synchronization.
+
 class DB {
  public:
   // Open the database with the specified "name".
@@ -76,7 +78,7 @@ class DB {
   static Status Open(const Options& options,
                      const std::string& name,
                      DB** dbptr);
-
+//  static IOStat iostat;
   DB() { }
   virtual ~DB();
 
@@ -118,6 +120,11 @@ class DB {
   virtual Status RangeLookUp(const ReadOptions& options,
                    const Slice& startSkey, const Slice& endSkey,
                    std::vector<SKeyReturnVal>* value, int kNoOfOutputs) = 0;
+
+  //This function checks if this key exists in level 0 to l-1 / memtable
+  virtual bool checkifValid(const ReadOptions& options,
+		  const Slice& key,
+		  int& level) = 0;
 
   // Return a heap-allocated iterator over the contents of the database.
   // The result of NewIterator() is initially invalid (caller must

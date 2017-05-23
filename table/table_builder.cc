@@ -236,26 +236,28 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
         sKey<<tid;
   }
   std::string tag = key.ToString().substr(key.size()-8);
-  Slice Key = sKey.str()+tag;
+  std::string secKeys = sKey.str();
+
+  Slice Key = secKeys+tag;
   //outputFile<<"Sec: "<<Key.ToString()<<std::endl;
 
 
-  r->secondary_filter_block->AddKey(Key);
-  if(rep_->maxSecValue== "" || rep_->maxSecValue.compare(sKey.str())<0)
-  {
-      rep_->maxSecValue = sKey.str();
-  }
+   r->secondary_filter_block->AddKey(Key);
+   if(rep_->maxSecValue== "" || rep_->maxSecValue.compare(secKeys)<0)
+   {
+       rep_->maxSecValue = secKeys;
+   }
 
-  if(rep_->minSecValue== "" || rep_->minSecValue.compare(sKey.str())>0)
-  {
-      rep_->minSecValue = sKey.str();
-  }
-
-
-  if(rep_->minSecValue== "" || rep_->minSecValue.compare(sKey.str())>0)
-  {
-      rep_->minSecValue = sKey.str();
-  }
+   if(rep_->minSecValue== "" || rep_->minSecValue.compare(secKeys)>0)
+   {
+       rep_->minSecValue = secKeys;
+   }
+//
+//
+//   if(rep_->minSecValue== "" || rep_->minSecValue.compare(secKeys)>0)
+//   {
+//       rep_->minSecValue = secKeys;
+//   }
 
   /*ParsedInternalKey parsed_key;
   if (!ParseInternalKey(key, &parsed_key)) {

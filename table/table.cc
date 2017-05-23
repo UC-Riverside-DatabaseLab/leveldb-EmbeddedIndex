@@ -21,6 +21,11 @@
 
 namespace leveldb {
 
+IOStat pr_iostat;
+IOStat sr_iostat;
+IOStat sr_range_iostat;
+IOStat w_iostat;
+
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
     std::stringstream ss(s);
     std::string item;
@@ -93,11 +98,15 @@ Status Table::Open(const Options& options,
   s = footer.DecodeFrom(&footer_input,isinterval );
   if (!s.ok()) return s;
 
+  ReadOptions roptions;
+  roptions.type = ReadType::Meta;
+
+
   // Read the index block
   BlockContents contents;
   Block* index_block = NULL;
   if (s.ok()) {
-    s = ReadBlock(file, ReadOptions(), footer.index_handle(), &contents);
+    s = ReadBlock(file, roptions, footer.index_handle(), &contents);
     if (s.ok()) {
       index_block = new Block(contents);
     }
@@ -111,7 +120,7 @@ Status Table::Open(const Options& options,
 	BlockContents contents;
 
 	if (s.ok()) {
-	  s = ReadBlock(file, ReadOptions(), footer.interval_handle(), &contents);
+	  s = ReadBlock(file, roptions, footer.interval_handle(), &contents);
 	  if (s.ok()) {
 		  interval_block = new Block(contents);
 	  }
@@ -138,6 +147,7 @@ Status Table::Open(const Options& options,
     (*table)->ReadMeta(footer);
   } else {
     if (index_block) delete index_block;
+    if (interval_block) delete interval_block;
   }
 
   return s;
@@ -155,6 +165,7 @@ void Table::ReadMeta(const Footer& footer) {
   // TODO(sanjay): Skip this if footer.metaindex_handle() size indicates
   // it is an empty block.
   ReadOptions opt;
+  opt.type = ReadType::Meta;
   BlockContents contents;
   if (!ReadBlock(rep_->file, opt, footer.metaindex_handle(), &contents).ok()) {
     // Do not propagate errors since meta info is not needed for operation
@@ -195,6 +206,7 @@ void Table::ReadFilter(const Slice& filter_handle_value) {
   // We might want to unify with ReadBlock() if we start
   // requiring checksum verification in Table::Open.
   ReadOptions opt;
+  opt.type = ReadType::Meta;
   BlockContents block;
   if (!ReadBlock(rep_->file, opt, filter_handle, &block).ok()) {
     return;
@@ -215,6 +227,7 @@ void Table::ReadSecondaryFilter(const Slice& filter_handle_value) {
   // We might want to unify with ReadBlock() if we start
   // requiring checksum verification in Table::Open.
   ReadOptions opt;
+  opt.type = ReadType::Meta;
   BlockContents block;
   if (!ReadBlock(rep_->file, opt, filter_handle, &block).ok()) {
     return;
@@ -262,6 +275,15 @@ Iterator* Table::BlockReader(void* arg,
   // can add more features in the future.
 
   if (s.ok()) {
+	if(options.type == ReadType::Write)
+		w_iostat.numberofIO++;
+	else if(options.type == ReadType::PRead)
+		pr_iostat.numberofIO++;
+	else if(options.type == ReadType::SRead)
+		sr_iostat.numberofIO++;
+	else if(options.type == ReadType::SRRead)
+		sr_range_iostat.numberofIO++;
+
     BlockContents contents;
     if (block_cache != NULL) {
       char cache_key_buffer[16];
@@ -271,6 +293,17 @@ Iterator* Table::BlockReader(void* arg,
       cache_handle = block_cache->Lookup(key);
       if (cache_handle != NULL) {
         block = reinterpret_cast<Block*>(block_cache->Value(cache_handle));
+
+    	if(options.type == ReadType::Write)
+    		w_iostat.cachehit++;
+    	else if(options.type == ReadType::PRead)
+    		pr_iostat.cachehit++;
+    	else if(options.type == ReadType::SRead)
+    		sr_iostat.cachehit++;
+    	else if(options.type == ReadType::SRRead)
+    		sr_range_iostat.cachehit++;
+
+
       } else {
         s = ReadBlock(table->rep_->file, options, handle, &contents);
         if (s.ok()) {
@@ -311,7 +344,7 @@ Iterator* Table::NewIterator(const ReadOptions& options) const {
 
 Status Table::InternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
-                          void (*saver)(void*, const Slice&, const Slice&)) {
+                          bool (*saver)(void*, const Slice&, const Slice&)) {
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
   iiter->Seek(k);
@@ -323,11 +356,21 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
         handle.DecodeFrom(&handle_value).ok() &&
         !filter->KeyMayMatch(handle.offset(), k)) {
       // Not found
+
+    	pr_iostat.prunebloomfilter++;
+
     } else {
+    	//leveldb::iostat.numberofIO++;
       Iterator* block_iter = BlockReader(this, options, iiter->value());
       block_iter->Seek(k);
       if (block_iter->Valid()) {
-        (*saver)(arg, block_iter->key(), block_iter->value());
+
+        bool f = (*saver)(arg, block_iter->key(), block_iter->value());
+
+       if(f==false)
+	   {
+    	   pr_iostat.bloomfilterFP++;
+	   }
       }
       s = block_iter->status();
       delete block_iter;
@@ -363,15 +406,22 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
           //outputFile<<(!filter->KeyMayMatch(handle.offset(), k))<<"\n";
           //outputFile<<"false\n";
         // Not found
+
+    	  sr_iostat.prunebloomfilter++;
+
       } else {
            
         //outputFile<<"true\n";
-  
+    	//leveldb::iostat.numberofIO++;
         Iterator* block_iter = BlockReader(this, options, iiter->value());
         block_iter->SeekToFirst();
         while(block_iter->Valid()) {
          
         bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
+        if(f==false)
+        {
+        	sr_iostat.bloomfilterFP++;
+        }
         //if(f)
             //outputFile<<"saved\n";
                 //outputFile<<newVal.key.ToString()<<endl<<newVal.value.ToString()<<endl;
@@ -451,11 +501,15 @@ Status Table::InternalGetWithInterval(const ReadOptions& options, const Slice& k
       //outputFile<<(filter != NULL)<<endl;//(!filter->KeyMayMatch(handle.offset(), k));//(handle.DecodeFrom(&handle_value).ok());
       if(sk.compare(key)<0 || sk.compare(value) >0 )
 		{
-		  //cout<<"Prune Interval\n";
+    	  //leveldb::iostat.pruneinterval++;
+    	  sr_iostat.pruneinterval++;
+		  //cout<<"Prune Interval\n"<< leveldb::iostat.pruneinterval;
 		}
       else if (filter != NULL &&
           handle.DecodeFrom(&handle_value).ok() &&
           !filter->KeyMayMatch(handle.offset(), k)) {
+    	  sr_iostat.prunebloomfilter++;
+
           //outputFile<<(!filter->KeyMayMatch(handle.offset(), k))<<"\n";
           //outputFile<<"false\n";
         // Not found
@@ -474,13 +528,18 @@ Status Table::InternalGetWithInterval(const ReadOptions& options, const Slice& k
         //outputFile<<"true\n";
 
         Iterator* block_iter = BlockReader(this, options, iiter->value());
+        //leveldb::iostat.numberofIO++;
         block_iter->SeekToFirst();
-        while(block_iter->Valid()) {
+        while(block_iter->Valid())
+        {
 
-        bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
+			bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
+			if(f==false)
+				sr_iostat.bloomfilterFP++;
+			block_iter->Next();
 
-        block_iter->Next();
         }
+
         s = block_iter->status();
         delete block_iter;
 
@@ -490,6 +549,7 @@ Status Table::InternalGetWithInterval(const ReadOptions& options, const Slice& k
       iiter->Next();
       iterInterval->Next();
   }
+
 
 
 
@@ -535,6 +595,7 @@ Status Table::RangeInternalGetWithInterval(const ReadOptions& options, const Sli
 	      if(startk.compare(value)>0 || endk.compare(key) <0 )
 			{
 			  //cout<<"Prune Interval\n";
+	    	  sr_range_iostat.pruneinterval++;
 			}
 
 	      else {
@@ -542,6 +603,7 @@ Status Table::RangeInternalGetWithInterval(const ReadOptions& options, const Sli
 	        //outputFile<<"true\n";
 
 	    	  Iterator* block_iter = BlockReader(this, options, iiter->value());
+	    	  //leveldb::iostat.numberofIO++;
 			block_iter->SeekToFirst();
 			  while(block_iter->Valid()) {
 				bool f = (*saver)(arg, block_iter->key(), block_iter->value(),secKey, topKOutput,db);
@@ -578,7 +640,7 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
   iiter->Seek(k);
  
   if (iiter->Valid()) {
-    Slice handle_value = iiter->value();
+    //Slice handle_value = iiter->value();
 
     BlockHandle handle;
 
@@ -626,6 +688,8 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& blockkey,  co
 	        if (filter != NULL &&
 	            handle.DecodeFrom(&handle_value).ok() &&
 	            !filter->KeyMayMatch(handle.offset(), pointkey)) {
+
+
 
 	        }
     //Slice handle_value = iiter->value();

@@ -277,6 +277,7 @@ struct SecSaver {
   SaverState state;
   const Comparator* ucmp;
   Slice user_key;
+  int level;
   std::vector<SKeyReturnVal>* value;
   std::unordered_set<std::string>* resultSetofKeysFound;
 };
@@ -285,6 +286,7 @@ struct RangeSecSaver {
   const Comparator* ucmp;
   Slice start_user_key;
   Slice end_user_key;
+  int level;
   std::vector<SKeyReturnVal>* value;
   std::unordered_set<std::string>* resultSetofKeysFound;
 };
@@ -334,7 +336,7 @@ std::string V_GetAttr(const rapidjson::Document& doc, const char* attr) {
 
 
 
-static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
+static bool SaveValue(void* arg, const Slice& ikey, const Slice& v) {
   Saver* s = reinterpret_cast<Saver*>(arg);
   ParsedInternalKey parsed_key;
   if (!ParseInternalKey(ikey, &parsed_key)) {
@@ -343,10 +345,14 @@ static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
     if (s->ucmp->Compare(parsed_key.user_key, s->user_key) == 0) {
       s->state = (parsed_key.type == kTypeValue) ? kFound : kDeleted;
       if (s->state == kFound) {
+
         s->value->assign(v.data(), v.size());
+        return true;
       }
     }
   }
+
+  return false;
 }
 
 static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string secKey, int topKOutput, DBImpl* db) {
@@ -401,22 +407,24 @@ static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string se
             //s->value->push_back(newVal); 
             if((int)(s->value->size())<topKOutput)
             {
-                Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
-                if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
-                {
+                //Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                //if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+                if(db->checkifValid(leveldb::ReadOptions(),newVal.key, s->level))
+            	{
                         newVal.Push(s->value, newVal);
                         s->resultSetofKeysFound->insert(ukey.ToString());
                 }
             }
             else if(newVal.sequence_number>s->value->front().sequence_number)
             {
-                Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
-                if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
-                {
+                //Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+                //if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+            	if(db->checkifValid(leveldb::ReadOptions(),newVal.key, s->level))
+            	{
                     newVal.Pop(s->value);
                     newVal.Push(s->value,newVal);
                     s->resultSetofKeysFound->insert(ukey.ToString());
-                    s->resultSetofKeysFound->erase(s->resultSetofKeysFound->find(s->value->front().key));
+                    //s->resultSetofKeysFound->erase(s->resultSetofKeysFound->find(s->value->front().key));
                 }
             }
             
@@ -475,8 +483,9 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
 				std::string temp;
 				if((int)(s->value->size())<topKOutput)
 				{
-					Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
-					if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+					//Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+					//if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+					if(db->checkifValid(leveldb::ReadOptions(),newVal.key, s->level))
 					{
 						 //outputFile<< "Push1: "<< std::endl;
 						newVal.Push(s->value, newVal);
@@ -486,8 +495,9 @@ static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, stri
 				}
 				else if(newVal.sequence_number>s->value->front().sequence_number)
 				{
-					Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
-					if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+					//Status st = db->Get(leveldb::ReadOptions(),newVal.key, &temp);
+					//if(st.ok()&&!st.IsNotFound()&&temp==newVal.value)
+					if(db->checkifValid(leveldb::ReadOptions(),newVal.key, s->level))
 					{
 						//outputFile<< "Push2: "<< std::endl;
 						newVal.Pop(s->value);
@@ -557,6 +567,106 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key,
       }
     }
   }
+}
+
+bool Version::checkifValid(const ReadOptions& options,
+		  const LookupKey& k,
+		  int& maxlevel,   GetStats* stats)
+{
+	Slice ikey = k.internal_key();
+	  Slice user_key = k.user_key();
+	  const Comparator* ucmp = vset_->icmp_.user_comparator();
+	  Status s;
+
+	  stats->seek_file = NULL;
+	  stats->seek_file_level = -1;
+	  FileMetaData* last_file_read = NULL;
+	  int last_file_read_level = -1;
+
+	  // We can search level-by-level since entries never hop across
+	  // levels.  Therefore we are guaranteed that if we find data
+	  // in an smaller level, later levels are irrelevant.
+	  std::vector<FileMetaData*> tmp;
+	  FileMetaData* tmp2;
+	  for (int level = 0; level < config::kNumLevels; level++) {
+		  if(level == maxlevel)
+			  return true;
+	    size_t num_files = files_[level].size();
+	    if (num_files == 0) continue;
+
+	    // Get the list of files to search in this level
+	    FileMetaData* const* files = &files_[level][0];
+	    if (level == 0) {
+	      // Level-0 files may overlap each other.  Find all files that
+	      // overlap user_key and process them in order from newest to oldest.
+	      tmp.reserve(num_files);
+	      for (uint32_t i = 0; i < num_files; i++) {
+	        FileMetaData* f = files[i];
+	        if (ucmp->Compare(user_key, f->smallest.user_key()) >= 0 &&
+	            ucmp->Compare(user_key, f->largest.user_key()) <= 0) {
+	          tmp.push_back(f);
+	        }
+	      }
+	      if (tmp.empty()) continue;
+
+	      std::sort(tmp.begin(), tmp.end(), NewestFirst);
+	      files = &tmp[0];
+	      num_files = tmp.size();
+	    } else {
+	      // Binary search to find earliest index whose largest key >= ikey.
+	      uint32_t index = FindFile(vset_->icmp_, files_[level], ikey);
+	      if (index >= num_files) {
+	        files = NULL;
+	        num_files = 0;
+	      } else {
+	        tmp2 = files[index];
+	        if (ucmp->Compare(user_key, tmp2->smallest.user_key()) < 0) {
+	          // All of "tmp2" is past any data for user_key
+	          files = NULL;
+	          num_files = 0;
+	        } else {
+	          files = &tmp2;
+	          num_files = 1;
+	        }
+	      }
+	    }
+
+	    for (uint32_t i = 0; i < num_files; ++i) {
+	      if (last_file_read != NULL && stats->seek_file == NULL) {
+	        // We have had more than one seek for this read.  Charge the 1st file.
+	        stats->seek_file = last_file_read;
+	        stats->seek_file_level = last_file_read_level;
+	      }
+
+	      FileMetaData* f = files[i];
+	      last_file_read = f;
+	      last_file_read_level = level;
+	      std::string value;
+	      Saver saver;
+	      saver.state = kNotFound;
+	      saver.ucmp = ucmp;
+	      saver.user_key = user_key;
+	      saver.value = &value;
+	      s = vset_->table_cache_->Get(options, f->number, f->file_size, ikey, &saver, SaveValue);
+	      if (!s.ok()) {
+	        return true;
+	      }
+	      switch (saver.state) {
+	        case kNotFound:
+	          break;      // Keep searching in other files
+	        case kFound:
+	          return false;
+	        case kDeleted:
+	          //s = Status::NotFound(Slice());  // Use empty error message for speed
+	          return false;
+	        case kCorrupt:
+	          //s = Status::Corruption("corrupted key for ", user_key);
+	          return false;
+	      }
+	    }
+	  }
+
+	  return false;  // Use an empty error message for speed
 }
 
 Status Version::Get(const ReadOptions& options,
@@ -671,6 +781,9 @@ Status Version::Get(const ReadOptions& options,
     
     //outputFile<<"in\n";
     
+
+
+
     
   Slice ikey = k.internal_key();
   Slice user_key = k.user_key();
@@ -700,17 +813,18 @@ Status Version::Get(const ReadOptions& options,
       tmp.reserve(num_files);
       for (uint32_t i = 0; i < num_files; i++) {
         FileMetaData* f = files[i];
-        tmp.push_back(f);
+        //tmp.push_back(f);
         if (ucmp->Compare(user_key, Slice(f->smallest_sec.c_str())) >= 0 &&
             ucmp->Compare(user_key, Slice(f->largest_sec.c_str())) <= 0) {
           tmp.push_back(f);
         }
-//        else
-//        	cout<<"Prune File in Lookup\n";
+        else
+        	sr_iostat.prunefile++;
+        	//cout<<"Prune File in Lookup\n";
       }
       if (tmp.empty()) continue;
 
-      std::sort(tmp.begin(), tmp.end(), NewestFirst);
+      //std::sort(tmp.begin(), tmp.end(), NewestFirst);
       files = &tmp[0];
       num_files = tmp.size();
     //} 
@@ -755,6 +869,7 @@ Status Version::Get(const ReadOptions& options,
       saver.user_key = user_key;
       saver.value = value;
       saver.resultSetofKeysFound = resultSetofKeysFound;
+      saver.level = level;
       s = vset_->table_cache_->Get(options, f->number, f->file_size,
                                    ikey, &saver, &SecSaveValue, secKey,kNoOfOutputs,db);
 
@@ -825,7 +940,8 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
 	        FileMetaData* f = files[i];
 	        if (startk.compare(f->largest_sec) > 0 ||
 	                    endk.compare(f->smallest_sec) < 0) {
-	        	cout<<"Prune File Interval\n";
+	        	//cout<<"Prune File Interval\n";
+	        	sr_iostat.prunefile++;
 	                }
 	        else
 	        	tmp.push_back(f);
@@ -834,7 +950,7 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
 	      }
 	      if (tmp.empty()) continue;
 
-	      std::sort(tmp.begin(), tmp.end(), NewestFirst);
+	      //std::sort(tmp.begin(), tmp.end(), NewestFirst);
 	      files = &tmp[0];
 	      num_files = tmp.size();
 	    //}
@@ -886,6 +1002,7 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
 		saver.start_user_key = startk;
 		saver.end_user_key = endk;
 		saver.value = value;
+		saver.level = level;
 		saver.resultSetofKeysFound = resultSetofKeysFound;
 		s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, startk, endk,
 	      									  &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);
@@ -984,6 +1101,7 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
           saver.ucmp = ucmp;
           saver.user_key = startk;
           saver.value = value;
+          saver.level = 1000;
           saver.resultSetofKeysFound = resultSetofKeysFound;
           //cout<<"start==end\n";
           s = vset_->table_cache_->Get(options, f->number, f->file_size, blockkey.internal_key(),
@@ -999,6 +1117,7 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
 		saver.start_user_key = startk;
 		saver.end_user_key = endk;
 		saver.value = value;
+		saver.level = 1000;
 		saver.resultSetofKeysFound = resultSetofKeysFound;
 		s = vset_->table_cache_->RangeLookUp(options, f->number, f->file_size, blockkey.internal_key(),
 									  &saver, &RangeSecSaveValue, secKey, kNoOfOutputs,db);

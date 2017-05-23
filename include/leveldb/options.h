@@ -30,6 +30,16 @@ enum CompressionType {
   kSnappyCompression = 0x1
 };
 
+enum ReadType {
+  // NOTE: do not change the values of existing entries, as these are
+  // part of the persistent format on disk.
+  PRead,
+  SRead,
+  SRRead,
+  Write,
+  Meta
+};
+
 // Options to control the behavior of a database (passed to DB::Open)
 struct Options {
   // -------------------
@@ -144,6 +154,8 @@ struct Options {
   string IntervalTreeFileName;
   //////////////////Secondary Filter////////////
   
+
+
   
   Options();
 };
@@ -167,9 +179,13 @@ struct ReadOptions {
   // Default: NULL
   const Snapshot* snapshot;
 
+
+  ReadType type;
+
   ReadOptions()
       : verify_checksums(false),
         fill_cache(true),
+		type(ReadType::Write),
         snapshot(NULL) {
   }
 };

@@ -41,6 +41,12 @@ This API reads a record from database with the specified primary key. This is sa
 
 This API is the new LOOKUP procedure which takes a secondary key and number of outputs K as input argument and return most recent top-K a record from database containing the specified secondary key.
 
+6. virtual Status RangeLookUp(const ReadOptions& options, const Slice& startSkey, const Slice& endSkey,
+                   std::vector<SKeyReturnVal>* value, int kNoOfOutputs);
+                   
+This API is the new Range LOOKUP procedure which takes a secondary start key and end key and ReadOptions as input argument. This API then returns the most recent top-K a record from database containing the specified secondary key range.
+                   
+
 The return value SKeyReturnVal contains key, value and the sequence_number of the resulting records.
 
 struct SKeyReturnVal {
