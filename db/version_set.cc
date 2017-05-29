@@ -776,15 +776,7 @@ Status Version::Get(const ReadOptions& options,
                     std::vector<SKeyReturnVal>* value,
                     GetStats* stats, string secKey, int kNoOfOutputs,std::unordered_set<std::string>* resultSetofKeysFound, DBImpl* db) {
     
-    //ofstream outputFile;
-    //outputFile.open("/home/mohiuddin/Desktop/TestDB/debug.txt" ,std::ofstream::out | std::ofstream::app);
-    
-    //outputFile<<"in\n";
-    
 
-
-
-    
   Slice ikey = k.internal_key();
   Slice user_key = k.user_key();
   const Comparator* ucmp = vset_->icmp_.user_comparator();
@@ -828,27 +820,7 @@ Status Version::Get(const ReadOptions& options,
       files = &tmp[0];
       num_files = tmp.size();
     //} 
-    /*else {
-      // Binary search to find earliest index whose largest key >= ikey.
-      uint32_t index = FindFile(vset_->icmp_, files_[level], ikey);
-      if (index >= num_files) {
-        files = NULL;
-        num_files = 0;
-      } else {
-        tmp2 = files[index];
-        if (ucmp->Compare(user_key, tmp2->smallest.user_key()) < 0) {
-          // All of "tmp2" is past any data for user_key
-          files = NULL;
-          num_files = 0;
-        } else {
-          files = &tmp2;
-          num_files = 1;
-        }
-      }
-    }
-     * 
-        */
-      //outputFile<<num_files<<endl;
+
     for (uint32_t i = 0; i < num_files; ++i) {
       if (last_file_read != NULL && stats->seek_file == NULL) {
         // We have had more than one seek for this read.  Charge the 1st file.
@@ -873,14 +845,6 @@ Status Version::Get(const ReadOptions& options,
       s = vset_->table_cache_->Get(options, f->number, f->file_size,
                                    ikey, &saver, &SecSaveValue, secKey,kNoOfOutputs,db);
 
-      //for(std::vector<SKeyReturnVal>::iterator it = value->begin(); it != value->end(); ++it) {
-      //      outputFile<<it->key.ToString()<<endl<<it->value.ToString()<<endl;
- 
-      //}
-      //for(int i=0;i<value->size();i++)
-        //  outputFile<<value[i]->key.ToString()<<endl<<value[i]->ToString()<<endl;
-
-      //       outputFile<<"in\n";
       
     }
       

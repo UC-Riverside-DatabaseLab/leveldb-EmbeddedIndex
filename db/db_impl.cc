@@ -695,6 +695,7 @@ Status DBImpl::BackgroundCompaction() {
   if (c == NULL) {
     // Nothing to do
   } else if (!is_manual && c->IsTrivialMove()) {
+	  //return status;
 	  //cout<<"trivial\n";
     // Move file to next level
     assert(c->num_input_files(0) == 1);
@@ -777,6 +778,8 @@ Status DBImpl::OpenCompactionOutputFile(CompactionState* compact) {
     out.number = file_number;
     out.smallest.Clear();
     out.largest.Clear();
+    out.smallest_sec.clear();
+    out.largest_sec.clear();
     compact->outputs.push_back(out);
     mutex_.Unlock();
   }

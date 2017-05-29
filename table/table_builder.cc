@@ -134,12 +134,12 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
 	 // cout<<"last key: "<<r->last_key<<endl;
 
 	  if(!r->options.IntervalTreeFileName.empty())
-		  intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+		  intervalTree_->insertInterval(SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ), r->minSecValue , r->maxSecValue, r->maxSecSeqNumber);
 	  else
 	  {
 		  //string s = rep_->minSecValue + "," + rep_->maxSecValue+ "," + std::to_string(rep_->maxSecSeqNumber);
-  		Slice value(rep_->maxSecValue);//"1,1,1";
-  		Slice inKey(rep_->minSecValue);
+  		Slice value(r->maxSecValue);//"1,1,1";
+  		Slice inKey(r->minSecValue);
 
   		r->interval_block.Add(inKey, value);
 
@@ -147,25 +147,25 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
 	  }
 	  //cout<<SSTR(fileNumber)+"+"+r->last_key.substr(0, r->last_key.size() - 8 ) <<" ,min: "<< rep_->minSecValue <<" ,max: "<< rep_->maxSecValue<<" ,seqno: "<< rep_->maxSecSeqNumber<<std::endl;
 
-    if(smallest_sec->empty())
-    {
-    	*smallest_sec = rep_->minSecValue;
-    	*largest_sec = rep_->maxSecValue;
-    }
-    else {
-    	if(this->smallest_sec->compare(rep_->minSecValue)>0)
+	if(smallest_sec->empty())
+	{
+		smallest_sec->assign(r->minSecValue);
+		largest_sec->assign(r->maxSecValue);
+	}
+	else {
+		if(this->smallest_sec->compare(r->minSecValue)>0)
 		{
-			*this->smallest_sec = rep_->minSecValue;
+			this->smallest_sec->assign(r->minSecValue);
 		}
-    	else if(this->largest_sec->compare(rep_->maxSecValue)<0)
+		else if(this->largest_sec->compare(rep_->maxSecValue)<0)
 		{
-    		*this->largest_sec = rep_->maxSecValue;
+			this->largest_sec->assign(r->maxSecValue);
 		}
-    }
+	}
 
-	rep_->minSecValue= "";
-	rep_->maxSecValue= "";
-	rep_->maxSecSeqNumber= 0;
+	r->minSecValue.clear();
+	r->maxSecValue.clear();
+	r->maxSecSeqNumber= 0;
 
     assert(r->data_block.empty());
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
@@ -182,7 +182,8 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
       //outputFile<<key.ToString()<<std::endl;
     r->filter_block->AddKey(key);
   }
-if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
+
+  if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
 
   rapidjson::Document docToParse;
 
@@ -243,14 +244,14 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
 
 
    r->secondary_filter_block->AddKey(Key);
-   if(rep_->maxSecValue== "" || rep_->maxSecValue.compare(secKeys)<0)
+   if(r->maxSecValue== "" || r->maxSecValue.compare(secKeys)<0)
    {
-       rep_->maxSecValue = secKeys;
+       r->maxSecValue.assign(secKeys);
    }
 
-   if(rep_->minSecValue== "" || rep_->minSecValue.compare(secKeys)>0)
+   if(r->minSecValue== "" || r->minSecValue.compare(secKeys)>0)
    {
-       rep_->minSecValue = secKeys;
+       r->minSecValue.assign(secKeys);
    }
 //
 //
@@ -278,9 +279,9 @@ if (r->secondary_filter_block != NULL&&!r->options.secondaryAtt.empty()) {
 	{
 		uint64_t num = DecodeFixed64(key.data() + n - 8);
 		SequenceNumber seq  = num >> 8;
-		if(rep_->maxSecSeqNumber < seq)
+		if(r->maxSecSeqNumber < seq)
 		  {
-			  rep_->maxSecSeqNumber = seq;
+			  r->maxSecSeqNumber = seq;
 		  }
 	}
 
@@ -308,6 +309,7 @@ void TableBuilder::Flush() {
   {
     r->secondary_filter_block->StartBlock(r->offset);
   }
+
 }
 
 void TableBuilder::WriteBlock(BlockBuilder* block, BlockHandle* handle) {
@@ -416,39 +418,39 @@ Status TableBuilder::Finish() {
     if (r->pending_index_entry) {
     	if(!r->options.IntervalTreeFileName.empty())
     	{
-    		intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key.substr(0, r->last_key.size() - 8 ), rep_->minSecValue , rep_->maxSecValue, rep_->maxSecSeqNumber);
+    		intervalTree_->insertInterval(SSTR(fileNumber) +"+"+ r->last_key.substr(0, r->last_key.size() - 8 ), r->minSecValue , r->maxSecValue, r->maxSecSeqNumber);
     		intervalTree_->sync();
     	}
     	else
     	{
     		//string s = rep_->minSecValue + "," + rep_->maxSecValue+ "," + std::to_string(rep_->maxSecSeqNumber);
     		//cout<<s;
-    		Slice value(rep_->maxSecValue);//"1,1,1";
-    		Slice inKey(rep_->minSecValue);
+    		Slice value(r->maxSecValue);//"1,1,1";
+    		Slice inKey(r->minSecValue);
 
     		r->interval_block.Add(inKey, value);
     	}
 
     	if(smallest_sec->empty())
 		{
-			*smallest_sec = rep_->minSecValue;
-			*largest_sec = rep_->maxSecValue;
+			smallest_sec->assign(r->minSecValue);
+			largest_sec->assign(r->maxSecValue);
 		}
 		else {
-			if(this->smallest_sec->compare(rep_->minSecValue)>0)
+			if(this->smallest_sec->compare(r->minSecValue)>0)
 			{
-				*this->smallest_sec = rep_->minSecValue;
+				this->smallest_sec->assign(r->minSecValue);
 			}
 			else if(this->largest_sec->compare(rep_->maxSecValue)<0)
 			{
-				*this->largest_sec = rep_->maxSecValue;
+				this->largest_sec->assign(r->maxSecValue);
 			}
 		}
 
 	  //outputFile<<SSTR(fileNumber)+"+"+ r->last_key.substr(0, r->last_key.size() - 8 )<<" "<< rep_->minSecValue <<" "<< rep_->maxSecValue<<" "<< rep_->maxSecSeqNumber<<std::endl;
-		rep_->minSecValue= "";
-		rep_->maxSecValue= "";
-		rep_->maxSecSeqNumber= 0;
+		r->minSecValue.clear();
+		r->maxSecValue.clear();
+		r->maxSecSeqNumber= 0;
 
       //outputFile<<r->last_key<<std::endl;
       //r->options.comparator->FindShortSuccessor(&r->last_key);
@@ -469,7 +471,6 @@ Status TableBuilder::Finish() {
 		WriteBlock(&r->interval_block, &interval_block_handle);
 	  }
 	  WriteBlock(&r->index_block, &index_block_handle);
-
 
   }
 

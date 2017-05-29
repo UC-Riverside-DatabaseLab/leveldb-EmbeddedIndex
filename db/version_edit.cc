@@ -96,6 +96,15 @@ static bool GetInternalKey(Slice* input, InternalKey* dst) {
     return false;
   }
 }
+static bool GetStringKey(Slice* input, std::string* dst) {
+  Slice str;
+  if (GetLengthPrefixedSlice(input, &str)) {
+    dst->assign(str.data(), str.size());
+    return true;
+  } else {
+    return false;
+  }
+}
 
 static bool GetLevel(Slice* input, int* level) {
   uint32_t v;
@@ -187,7 +196,9 @@ Status VersionEdit::DecodeFrom(const Slice& src) {
             GetVarint64(&input, &f.number) &&
             GetVarint64(&input, &f.file_size) &&
             GetInternalKey(&input, &f.smallest) &&
-            GetInternalKey(&input, &f.largest)) {
+            GetInternalKey(&input, &f.largest) &&
+			GetStringKey(&input, &f.smallest_sec) &&
+			GetStringKey(&input, &f.largest_sec) ) {
           new_files_.push_back(std::make_pair(level, f));
         } else {
           msg = "new-file entry";

@@ -32,7 +32,15 @@ MemTable::MemTable(const InternalKeyComparator& cmp, std::string secAtt)
 }
 
 MemTable::~MemTable() {
-  assert(refs_ == 0);
+
+	SecMemTable::const_iterator lookup = secTable_.begin();
+	for(;lookup!=secTable_.end();lookup.increment())
+	{
+		pair<string, vector<string> *> pr  =  *lookup;
+		delete pr.second;
+	}
+	secTable_.clear();
+	assert(refs_ == 0);
 }
 
 size_t MemTable::ApproximateMemoryUsage() { return arena_.MemoryUsage(); }
@@ -181,7 +189,8 @@ void MemTable::Add(SequenceNumber s, ValueType type,
         pr.second->push_back(key.ToString());
         
     }
-    
+
+
 }
 bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
   Slice memkey = key.memtable_key();
