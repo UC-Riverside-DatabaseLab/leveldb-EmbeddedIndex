@@ -355,7 +355,7 @@ static bool SaveValue(void* arg, const Slice& ikey, const Slice& v) {
   return false;
 }
 
-static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string secKey, int topKOutput, DBImpl* db) {
+static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string &secKey, int& topKOutput, DBImpl* db) {
     
  // ofstream outputFile;
   //outputFile.open("/home/mohiuddin/Desktop/TestDB/debug.txt" ,std::ofstream::out | std::ofstream::app);
@@ -439,7 +439,7 @@ static bool SecSaveValue(void* arg, const Slice& ikey, const Slice& v, string se
 
 
 
-static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, string secKey, int topKOutput, DBImpl* db) {
+static bool RangeSecSaveValue(void* arg, const Slice& ikey, const Slice& v, string& secKey, int& topKOutput, DBImpl* db) {
     
   RangeSecSaver* s = reinterpret_cast<RangeSecSaver*>(arg);
              
@@ -854,7 +854,7 @@ Status Version::Get(const ReadOptions& options,
       
         return s;
       }
-      
+      tmp.clear();
       //valueSize = value->size();
       
   }
@@ -981,6 +981,7 @@ Status Version::EmbeddedRangeLookUp(const ReadOptions& options,
 	      }
 
 	      //valueSize = value->size();
+	      tmp.clear();
 
 	  }
 
@@ -2145,7 +2146,7 @@ void Compaction::AddInputDeletions(VersionEdit* edit) {
   for (int which = 0; which < 2; which++) {
     for (size_t i = 0; i < inputs_[which].size(); i++) {
       edit->DeleteFile(level_ + which, inputs_[which][i]->number);
-      if(this->input_version_->vset_->options_->IntervalTreeFileName.empty())
+      if(!this->input_version_->vset_->options_->IntervalTreeFileName.empty())
       {
 		  TwoDITwTopK* itree = input_version_->vset_->table_cache_->getIntervalTree();
 		  itree->deleteAllIntervals(SSTR(inputs_[which][i]->number));

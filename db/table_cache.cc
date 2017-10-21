@@ -129,8 +129,8 @@ Status TableCache::Get(const ReadOptions& options,
                        uint64_t file_size,
                        const Slice& k,
                        void* arg,
-                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput, DBImpl* db) {
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput, DBImpl* db) {
   Cache::Handle* handle = NULL;
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {
@@ -155,8 +155,8 @@ Status TableCache::Get(const ReadOptions& options,
 					   const Slice& blockKey,
                        const Slice& k,
                        void* arg,
-                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput, DBImpl* db) {
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int &topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput, DBImpl* db) {
   Cache::Handle* handle = NULL;
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {
@@ -178,8 +178,8 @@ Status TableCache::RangeLookUp(const ReadOptions& options,
                        uint64_t file_size,
                        const Slice& startk, const Slice& endk,
                        void* arg,
-					   bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput, DBImpl* db) {
+					   bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput, DBImpl* db) {
   Cache::Handle* handle = NULL;
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {
@@ -202,8 +202,8 @@ Status TableCache::RangeLookUp(const ReadOptions& options,
                        uint64_t file_size,
                       const Slice& blockKey,
                        void* arg,
-                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput,DBImpl* db) {
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput,DBImpl* db) {
   Cache::Handle* handle = NULL;
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {

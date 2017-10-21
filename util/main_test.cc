@@ -19,65 +19,59 @@
 using namespace std;
 using namespace leveldb;
 
-#define NUM_BIN 5
+#define NUM_BIN 10
 
 //NYTweetsUserIDRangerw19
 //NYTweetsTimerw19
 
 //static int workloadtype = 2; //static =1, dynamic =2
 static string basefilepath = "/home/mohiuddin/Desktop/LevelDB_Correctness_Testing/";
-//static int basefilepath = "../";
+//static string basefilepath = "../";
 
 static string benchmark_file = basefilepath + "Benchmarks/NYTweetsUserIDRangerw19";
 
-static string dynamic_workload = basefilepath + "Datasets/WriteHeavy";
+//static string dynamic_workload = basefilepath + "Datasets/WriteHeavy";
 //static string dynamic_workload = basefilepath + "Datasets/ReadHeavy";
-//static string dynamic_workload = basefilepath + "Datasets/UpdateHeavy";
-static string dynamic_database = basefilepath + "DB/Embedded_Dynamic_UserID";
-static string dynamic_result_file = basefilepath + "Results/Embedded_Dynamic_Write.csv";
-static string dynamic_iostat_file = basefilepath + "Results/Embedded_Dynamic_Write_iostat.csv";
-static uint64_t MAX_OP = 2000000;
+static string dynamic_workload = basefilepath + "Datasets/Large/UpdateHeavy";
+static string dynamic_database = basefilepath + "DB/Embedded_Dynamic_Update_UserID";
+static string dynamic_result_file = basefilepath + "Results/Embedded_Dynamic_Update.csv";
+static string dynamic_iostat_file = basefilepath + "Results/Embedded_Dynamic_Update_iostat.csv";
+static string dynamic_hist_file = basefilepath + "Results/Embedded_Dynamic_Update_UserID_hist";
+
+
+static uint64_t MAX_OP = 1000000;
 static uint64_t DYNAMIC_LOG_POINT =  MAX_OP/10;
 
-static string database = basefilepath + "DB/Embedded_Static_UserID";
-static string static_dataset =basefilepath + "Datasets/StaticDatasetSmall";
-static string static_query = basefilepath + "Datasets/StaticQueryUser";
+
+
+static string database = basefilepath + "DB/Embedded_Static_Time_FATKV";
+static string static_dataset =basefilepath + "Datasets/StaticDatasetLarge";
+static string static_query = basefilepath + "Datasets/StaticQueryTime";
 static string static_pr = basefilepath + "Datasets/StaticQueryID";
 
-static string result_file = basefilepath + "Results/Embedded_Static_UserID.csv";
-static string iostat_file = basefilepath + "Results/Embedded_Static_UserID_iostat.csv";
+static string result_file = basefilepath + "Results/Embedded_Static_Time_FATKV_Lookup.csv";
+static string iostat_file = basefilepath + "Results/Embedded_Static_Time_iostat_FATKV_Lookup.csv";
+static string result_hist_file = basefilepath + "Results/Embedded_Static_Time_hist_";
 
-static uint64_t MAX_WRITE = 2000000;
-static uint64_t LOG_POINT =  MAX_WRITE/2;
+static uint64_t MAX_WRITE = 200000000;
+static uint64_t LOG_POINT =  MAX_WRITE/200;
 
-static uint64_t MAX_QUERY =  1000;
-static uint64_t READ_LOG_POINT = MAX_QUERY/2;
+static uint64_t MAX_QUERY =  10000;
+static int filltablecache = 500;
+static uint64_t READ_LOG_POINT = (MAX_QUERY-filltablecache)/100;
 
-static uint64_t SAMPLE_FOR_HIST =  MAX_QUERY/100;
+static uint64_t MAX_QUERY_LOOKUP = 2000; //10500;
+static int filltablecacheL = 500 ;//500;
+static uint64_t READ_LOG_POINT_L = (MAX_QUERY_LOOKUP)/20;
 
+static uint64_t MAX_QUERY_RL =  150;
+static int filltablecacheRL = 0;
+static uint64_t READ_LOG_POINT_RL = (MAX_QUERY_RL)/15;
 
-static int topkset[] = {10};
-static int topksetlen = 1;
+static uint64_t topkset[] = {10, 100, 1000000};
+static int topksetlen = 3;
 
-//static string benchmark_file = basefilepath + "/Dataset/NYTweetsUserIDRangerw19";
-
-//static string database = "/DB/Embedded_Static_UserID";
-//static string static_dataset = "/Datasets/StaticDatasetSmall";
-//static string static_query = "/Datasets/StaticQueryUser";
-//static string static_pr = "/Datasets/StaticQueryID";
-
-//static string result_file = "/Results/Embedded_Static_UserID.csv";
-//static string iostat_file = "/Results/Embedded_Static_UserID_iostat.csv";
-
-//static uint64_t MAX_WRITE = 200000000;
-//static uint64_t LOG_POINT =  MAX_WRITE/200;
-//
-//static uint64_t MAX_QUERY =  MAX_WRITE/20000;
-//static uint64_t READ_LOG_POINT = MAX_QUERY/10;
-//
-//static int topkset[] = {2, 5, 10, 100};
-//static int topksetlen = 4;
-
+//static uint64_t SAMPLE_FOR_HIST =  200;//MAX_QUERY/10;
 
 static std::string PrimaryAtt = "ID";
 //static std::string SecondaryAtt = "CreationTime";
@@ -85,7 +79,7 @@ static std::string SecondaryAtt = "UserID";
 
 
 static int isintervaltree = false;
-static int numberofselectivity = 2;
+static int numberofselectivity = 4;
 static int topk = 10;
 
 
@@ -196,7 +190,7 @@ void PerformDynamicWorkload()
     options.PrimaryAtt = PrimaryAtt;
     options.secondaryAtt = SecondaryAtt;
     options.create_if_missing = true;
-    options.max_open_files = 2000;
+    options.max_open_files = 30000;
     options.block_cache = leveldb::NewLRUCache(200 * 1048576);  // 200MB cache
 
     if(isintervaltree)
@@ -220,6 +214,7 @@ void PerformDynamicWorkload()
     long rscount = 0;
     double durationW=0,durationRS=0,durationRP=0;
 	ofstream ofile(dynamic_result_file.c_str(),  std::ofstream::out | std::ofstream::app );
+	ofstream ofile_hist(dynamic_hist_file.c_str(),  std::ofstream::out | std::ofstream::app );
 
     while(getline(ifile, line)) {
 		i++;
@@ -250,13 +245,16 @@ void PerformDynamicWorkload()
 				leveldb::Status s = db->Get(roptions, x[1] , &svalues, topk);
 				gettimeofday(&end, NULL);
 
-				durationRS+= ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
+				double duration =  ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
+				durationRS+= duration;
 				int size = svalues.size();
 				rscount+=size;
 				if(svalues.size()>0) {
 					svalues.clear();
 				}
 				rs++;
+
+				ofile_hist<<duration<<endl;
 
             } else if(x[0]=="rp") {
                 std::string pvalue;
@@ -283,13 +281,16 @@ void PerformDynamicWorkload()
 			}
 			cout<< fixed;
 			cout.precision(3);
+
+			ofile<< fixed;
+			ofile.precision(3);
 			ofile << i/DYNAMIC_LOG_POINT <<"," << (durationW+durationRP+durationRS)/i <<"," << durationW/w  <<"," << durationRP/rp <<"," << durationRS/rs <<"," << rscount/rs <<endl;
 			cout << i/DYNAMIC_LOG_POINT <<",\t" << (durationW+durationRP+durationRS)/i <<",\t" << durationW/w  <<",\t" << durationRP/rp <<",\t" << durationRS/rs <<",\t" << rscount/rs <<endl;
 
 			//cout<< "\nLookup IOStat\n\n";
 			//printiostat(lookup_iostat, rs);
 			sr_iostat.print(rs, ofile_iostat, "Lookup");
-			//sr_iostat.print(rs);
+			sr_iostat.print(rs);
 
 			//cout<< "\nRange Lookup IOStat\n\n";
 			//sr_range_iostat.print(rsrange, ofile_iostat, "RangeLookup");
@@ -314,6 +315,7 @@ void PerformDynamicWorkload()
     delete options.block_cache;
     ofile.close();
     ofile_iostat.close();
+    ofile_hist.close();
 
 }
 
@@ -333,7 +335,7 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 		int bloomfilter = 100;
 
 	    options.filter_policy = leveldb::NewBloomFilterPolicy(bloomfilter);
-	    options.max_open_files = 2000;
+	    options.max_open_files = 30000;
 	    options.block_cache = leveldb::NewLRUCache(200 * 1048576);  // 200MB cache
 
 	    options.PrimaryAtt = PrimaryAtt;
@@ -358,7 +360,7 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 	    double rscount =0;
 	    double durationW=0,durationRS=0,durationRP=0;
 
-	    double durationRSHist[NUM_BIN];
+	    //double durationRSHist[NUM_BIN];
 
 
 	    struct timeval start, end;
@@ -462,7 +464,7 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 
 
 		//End of All Reads, Read on Secondary Lookup Begins
-
+		int readop = 0;
 		if(selectivityfactor>=0)
 		{
 			std::string query;
@@ -471,32 +473,52 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 			ifstream ifile_q(static_query.c_str());
 			if (!ifile_q) { cerr << "Can't open query file " << endl; return; }
 
-			for(int t=0; t<topksetlen; t++)
+			for(int s = 0 ; s < numberofselectivity; s++)
 			{
-				//cout<<"\nInsert topk (insert 0 to end): "; cin>>topk;
-				//cout<<"Insert selectivity, (0-1), 0 means Point Lookup, 1 means range "; cin>>selectivity;
+				if(selectivityfactor != s && selectivityfactor <numberofselectivity )
+					continue;
 
-				topk = topkset[t];
-
-				if(topk ==0)
-					break;
-
-
-				for(int s = 0 ; s < numberofselectivity; s++)
+				for(int t=0; t<topksetlen; t++)
 				{
-					if(selectivityfactor != s && selectivityfactor <numberofselectivity )
-						continue;
+					//cout<<"\nInsert topk (insert 0 to end): "; cin>>topk;
+					//cout<<"Insert selectivity, (0-1), 0 means Point Lookup, 1 means range "; cin>>selectivity;
+
+					topk = topkset[t];
+					//roptions.num_records = topk;
+
+					if(topk ==0)
+						break;
 
 					vector<leveldb::SKeyReturnVal> svalues;
 
 					durationRS=0, rs=0, rscount =0;
+					//int durationRSHist[NUM_BIN]={0};
 					sr_iostat.clear();
 					sr_range_iostat.clear();
 
 					ifile_q.seekg(0, ios::beg);
 
-					double minDuration = 99999999999 , maxDuration=-1;
-					int binsize = 0;
+//					double minDuration = 99999999999 , maxDuration=-1;
+//					int binsize = 0;
+
+					string histfile;
+					if(s == 0)
+					{
+						histfile = result_hist_file+"Lookup-k="+to_string(topk);
+						READ_LOG_POINT = READ_LOG_POINT_L;
+						MAX_QUERY = MAX_QUERY_LOOKUP;
+						filltablecache = filltablecacheL;
+
+					}
+					else
+					{
+						histfile = result_hist_file + "RangeLookup-k="+to_string(topk)+"sel="+to_string(s);
+						READ_LOG_POINT = READ_LOG_POINT_RL;
+						MAX_QUERY = MAX_QUERY_RL;
+						filltablecache = filltablecacheRL;
+					}
+
+					ofstream ofile_hist(histfile.c_str(),  std::ofstream::out );
 
 					while(getline(ifile_q, query)) {
 
@@ -518,7 +540,11 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 								leveldb::Status s = db->Get(roptions, x[1] , &svalues, topk);
 								gettimeofday(&end, NULL);
 
-
+								if(readop<filltablecache)
+								{
+									readop++;
+									continue;
+								}
 							}
 							else
 							{
@@ -528,9 +554,15 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 								leveldb::Status s = db->RangeLookUp(roptions, x[1] , x[2] , &svalues, topk);
 								gettimeofday(&end, NULL);
 
+								if(readop<filltablecache)
+								{
+									readop++;
+									continue;
+								}
+
 							}
 
-							double duration =  ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
+							double duration =  ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec))/1000.0;
 							durationRS+= duration;
 							int size = svalues.size();
 							rscount+=size;
@@ -538,32 +570,35 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 								svalues.clear();
 							}
 							rs++;
-
-							if(rs<SAMPLE_FOR_HIST)
+							ofile_hist<<duration<<endl;
+//							if(rs<SAMPLE_FOR_HIST)
+//							{
+//								if(duration < minDuration )
+//									minDuration =duration;
+//								if(duration > maxDuration)
+//									maxDuration = duration;
+//								//continue;
+//
+//							}
+//							else if(rs == SAMPLE_FOR_HIST)
+//							{
+//								binsize = (int)(maxDuration - minDuration) / NUM_BIN;
+//
+//							}
+//							else
 							{
-								if(duration < minDuration )
-									minDuration =duration;
-								if(duration > maxDuration)
-									maxDuration = duration;
-
-							}
-							else if(rs == SAMPLE_FOR_HIST)
-							{
-								binsize = (int)(maxDuration - 1) / NUM_BIN;
-
-							}
-							else
-							{
-								int x= 1;
-								for(int b=0;b<NUM_BIN;b++)
-								{
-									x += binsize;
-									if(duration <= x || b==NUM_BIN-1)
-									{
-										durationRSHist[b]++;
-										break;
-									}
-								}
+//								int x= minDuration;
+//								for(int b=0;b<NUM_BIN;b++)
+//								{
+//
+//									if(duration <= x || b==NUM_BIN-1)
+//									{
+//										durationRSHist[b]++;
+//										break;
+//									}
+//
+//									x += binsize;
+//								}
 
 								if(rs%READ_LOG_POINT == 0)
 								{
@@ -583,19 +618,20 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 
 									}
 									ofile << optype << ","<< rs/READ_LOG_POINT <<"," << durationRS/rs <<","<<rscount/rs<< endl;
-									cout<<  optype<< ","<< rs/READ_LOG_POINT <<"," << durationRS/rs <<","<<rscount/rs<< endl;
+									cout<< rs << "," << optype<< ","<< rs/READ_LOG_POINT <<"," << durationRS/rs <<","<<rscount/rs<< endl;
 
 
-									int x = 0;
-									for (int b = 0; b < NUM_BIN; b++)
-									{
-										x += binsize;
-										ofile << x <<","<<  durationRSHist[b] << ",";
-										cout << x <<","<<  durationRSHist[b] << ",";
-
-									}
-									ofile<<endl;
-									cout<<endl;
+//									int x = minDuration;
+//									for (int b = 0; b < NUM_BIN; b++)
+//									{
+//										ofile << x <<","<<  durationRSHist[b] << ",";
+//										cout << x <<","<<  durationRSHist[b] << ",";
+//
+//										x += binsize;
+//
+//									}
+//									ofile<<endl;
+//									cout<<endl;
 
 									if(rs>=MAX_QUERY)
 										break;
@@ -609,6 +645,7 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 					}
 
 					ifile_q.clear();
+					ofile_hist.close();
 					//delete durationRSHist;
 				}
 
@@ -630,232 +667,6 @@ void PerformStaticWorkload(bool put, bool get, int selectivityfactor)
 }
 
 
-void TestPerformStaticWorkload(bool readorwrite)
-{
-		leveldb::DB *db;
-	    leveldb::Options options;
-
-		int bloomfilter = 100;
-
-	    options.filter_policy = leveldb::NewBloomFilterPolicy(bloomfilter);
-	    options.max_open_files = 2000;
-	    options.block_cache = leveldb::NewLRUCache(200 * 1048576);  // 100MB cache
-
-	    options.PrimaryAtt = PrimaryAtt;
-	    options.secondaryAtt = SecondaryAtt;
-	    options.create_if_missing = true;
-	    if(isintervaltree)
-	    	options.IntervalTreeFileName = "./interval_tree";
-	    else
-	    	options.IntervalTreeFileName ="";
-
-	    leveldb::Status status = leveldb::DB::Open(options, database, &db);
-	    assert(status.ok());
-
-	    string line;
-	    uint64_t i=0;
-	    rapidjson::Document d;
-
-	    leveldb::ReadOptions roptions;
-	    //roptions.iostat.clear();
-
-	    uint64_t w=0, rs=0, rp=0;
-	    double rscount =0;
-	    double durationW=0,durationRS=0,durationRP=0;
-
-	    struct timeval start, end;
-
-		//ofstream ofile(result_file.c_str(),  std::ofstream::out | std::ofstream::app );
-		ifstream ifile(static_dataset.c_str());
-		if (!ifile) { cerr << "Can't open input file " << endl; return; }
-
-
-		//ofile << "Op Type"  <<"," << "No of Op (Millions)" <<"," << "Time Per Op." << "," << "Results Per Op" <<endl;
-
-		//w_iostat.print(0, ofile_iostat, "");
-
-		//write all records
-
-		if(readorwrite== false)
-		{
-			std::string tweet;
-			while(getline(ifile, tweet)) {
-				i++;
-				leveldb::WriteOptions woptions;
-
-				std::string pkey;
-				ParseTweetJson(tweet, pkey);
-
-				gettimeofday(&start, NULL);
-				leveldb::Status s = db->Put(woptions, pkey, tweet);
-				gettimeofday(&end, NULL);
-
-				durationW+= ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
-				w++;
-
-
-				if (w%LOG_POINT == 0)
-				{
-//					ofile<< fixed;
-//					ofile.precision(3);
-//					ofile << "Put,"<< w/LOG_POINT <<"," << durationW/w <<",0"<<endl;
-
-					cout << "Put,"<< w/LOG_POINT <<"," << durationW/w <<",0"<<endl;
-					//w_iostat.print(w, ofile_iostat, "Put");
-
-					if(w>=MAX_WRITE)
-						break;
-
-					//usleep(1000);
-				}
-
-
-			}
-
-			ifile.close();
-		}
-		else
-		{
-
-			//End of All writes, Read on Primary Begins
-			std::string pread;
-			ifstream ifile_pr(static_pr.c_str());
-			if (!ifile_pr) { cerr << "Can't open query file " << endl; return; }
-
-			i=0;
-			while(getline(ifile_pr, pread)) {
-				i++;
-				std::string pvalue;
-				roptions.type = ReadType::PRead;
-				gettimeofday(&start, NULL);
-				leveldb::Status s = db->Get(roptions, pread , &pvalue);
-				gettimeofday(&end, NULL);
-				durationRP+= ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
-				//get_iostat.update(leveldb::iostat);
-				int found =0 ;
-				if(s.IsNotFound()==false)
-					found =1;
-				rp++;
-
-
-				if (rp%READ_LOG_POINT == 0)
-				{
-//					ofile<< fixed;
-//					ofile.precision(3);
-//					ofile << "Get,"<< rp/READ_LOG_POINT <<"," << durationRP/rp <<","<<found<<endl;
-
-					cout << "Get,"<< rp/READ_LOG_POINT <<"," << durationRP/rp <<","<<found<<endl;
-					//pr_iostat.print(rp, ofile_iostat, "Get");
-
-					if(rp>=MAX_QUERY)
-						break;
-
-				}
-
-
-
-			}
-
-			std::string query;
-
-
-			ifstream ifile_q(static_query.c_str());
-			if (!ifile_q) { cerr << "Can't open query file " << endl; return; }
-			topk =10;
-
-
-			vector<leveldb::SKeyReturnVal> svalues;
-			durationRS=0, rs=0, rscount =0;
-
-			int s = 0;
-
-			while(getline(ifile_q, query)) {
-
-				std::vector<std::string> x = split(query, '\t');
-
-				if(x.size()==3) {
-
-
-					int sel = std::atoi(x[0].c_str());
-
-
-					if(s!=sel)
-						continue;
-
-					if(sel==0)
-					{
-
-						roptions.type = ReadType::SRead;
-						gettimeofday(&start, NULL);
-						leveldb::Status s = db->Get(roptions, x[1] , &svalues, topk);
-						gettimeofday(&end, NULL);
-
-
-					}
-					else
-					{
-						roptions.type = ReadType::SRRead;
-
-						gettimeofday(&start, NULL);
-						leveldb::Status s = db->RangeLookUp(roptions, x[1] , x[2] , &svalues, topk);
-						gettimeofday(&end, NULL);
-
-					}
-
-					double duration =  ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
-					durationRS+= duration;
-					int size = svalues.size();
-					rscount+=size;
-					if(svalues.size()>0) {
-						svalues.clear();
-					}
-					rs++;
-					string optype= "";
-					if(s == 0)
-					{
-						optype =  "Lookup-k="+to_string(topk);
-
-
-					}
-					else
-					{
-						optype = "RangeLookup-k="+to_string(topk)+"sel="+to_string(s);
-
-
-					}
-					//ofile << optype << ","<< rs/READ_LOG_POINT <<"," << durationRS/rs <<","<<rscount/rs<< endl;
-					if(rs%READ_LOG_POINT == 0)
-					{
-						cout<<  optype<< ","<< rs/READ_LOG_POINT <<"," << durationRS/rs <<","<<rscount/rs<< endl;
-					}
-
-					if(rs>=MAX_QUERY)
-						break;
-
-				}
-
-
-
-			}
-
-			ifile_q.clear();
-		}
-
-
-//		ifile_pr.close();
-
-
-		delete db;
-		delete options.block_cache;
-		delete options.filter_policy;
-		//ofile.close();
-
-
-
-
-}
-
-
 int main(int argc, char** argv) {
 
 
@@ -864,8 +675,7 @@ int main(int argc, char** argv) {
 		benchmark_file = argv[1];
 		database = argv[2];
 		result_file = argv[3];
-		//cout<< argv[3] ;
-
+		//cout<< argv[3];
 		//testWithBenchMark();
 
 	}
@@ -874,7 +684,7 @@ int main(int argc, char** argv) {
 		//TestPerformStaticWorkload(true);
 
 		PerformDynamicWorkload();
-		//PerformStaticWorkload(false, true, 0);
+		//PerformStaticWorkload(false, false, 6);
 
 		//cout<<"Please Put arguments in order: \n arg1=benchmarkpath arg2=dbpath arg3=resultpath\n";
 	}

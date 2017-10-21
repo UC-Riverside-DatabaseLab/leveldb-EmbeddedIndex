@@ -82,7 +82,8 @@ Status Table::Open(const Options& options,
 	  else
 		  footerlength = Footer::kEncodedLength;
     
-  *table = NULL;
+	  *table = NULL;
+
   if (size < footerlength) {
     return Status::InvalidArgument("file is too short to be an sstable");
   }
@@ -386,7 +387,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
 
 Status Table::InternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
-                          bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
+                          bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput, DBImpl* db),string& secKey,int& topKOutput,DBImpl* db)  {
     //ofstream outputFile;
     //outputFile.open("/Users/nakshikatha/Desktop/test codes/debug.txt");
     //outputFile<<k.ToString()<<"\n\nStart:\n\n";
@@ -472,7 +473,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
 
 Status Table::InternalGetWithInterval(const ReadOptions& options, const Slice& k,
                           void* arg,
-                          bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
+                          bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput, DBImpl* db),string& secKey,int& topKOutput,DBImpl* db)  {
 
 	Status s;
 	Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
@@ -566,7 +567,7 @@ Status Table::InternalGetWithInterval(const ReadOptions& options, const Slice& k
 
 Status Table::RangeInternalGetWithInterval(const ReadOptions& options, const Slice& startk, const Slice& endk,
                           void* arg,
-						  bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db), string secKey,int topKOutput,DBImpl* db)  {
+						  bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput, DBImpl* db), string& secKey,int& topKOutput,DBImpl* db)  {
 
 	Status s;
 	Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
@@ -634,7 +635,7 @@ Status Table::RangeInternalGetWithInterval(const ReadOptions& options, const Sli
 
 Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
                           void* arg,
-                          bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
+                          bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput, DBImpl* db),string& secKey,int& topKOutput,DBImpl* db)  {
 
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
@@ -674,7 +675,7 @@ Status Table::RangeInternalGet(const ReadOptions& options, const Slice& k,
 
 Status Table::InternalGet(const ReadOptions& options, const Slice& blockkey,  const Slice& pointkey,
                           void* arg,
-						  bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput, DBImpl* db),string secKey,int topKOutput,DBImpl* db)  {
+						  bool (*saver)(void*, const Slice&, const Slice&,std::string &secKey,int& topKOutput, DBImpl* db),string& secKey,int& topKOutput,DBImpl* db)  {
 
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);

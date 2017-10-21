@@ -76,7 +76,7 @@ public:
 	  std::cout<<"Avg IO: "<<(double)(this->numberofIO/numberofop)<<std::endl;
 	  if(numberofIO>0)
 	  {
-		  double s = cachehit/numberofIO*100;
+		  double s = (double)cachehit/numberofIO*100.0;
 		  std::cout<<"Cache Hit%: "<<s<<std::endl;
 	  }
 	  else
@@ -96,6 +96,9 @@ public:
   	{
   	  //uint64_t p = 10;
   	  //std::cout<<numberofop/p<<std::endl;
+	  ofile<< std::fixed;
+	  ofile.precision(3);
+
 	  if(numberofop==0)
 		  ofile<<"Op Type, Total IO, Avg IO, Cache Hit%, BF Prune, BF FP%, Avg RF Prune, Avg RF File Prune\n";
 	  else
@@ -103,11 +106,11 @@ public:
 		  ofile<<type<<",";
 		  ofile<<this->numberofIO<< "," ;
 
-		  ofile<<(double)(this->numberofIO/numberofop)<<"," ;
+		  ofile<<((double)this->numberofIO/numberofop)<<"," ;
 
 		  if(numberofIO>0)
 		  {
-			  double s = cachehit/numberofIO*100;
+			  double s = (double)cachehit/numberofIO*100.0;
 
 			  ofile<<s<<"," ;
 		  }

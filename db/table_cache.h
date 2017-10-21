@@ -51,8 +51,8 @@ Status Get(const ReadOptions& options,
                        uint64_t file_size,
                       const Slice& k,
                        void* arg,
-                       bool (*saver)(void*, const Slice&, const Slice&, std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput,DBImpl* db) ;
+                       bool (*saver)(void*, const Slice&, const Slice&, std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput,DBImpl* db) ;
 
 Status Get(const ReadOptions& options,
                        uint64_t file_number,
@@ -60,24 +60,24 @@ Status Get(const ReadOptions& options,
 					   const Slice& blockKey,
                        const Slice& k,
                        void* arg,
-                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput, DBImpl* db);
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput, DBImpl* db);
 
 Status RangeLookUp(const ReadOptions& options,
                        uint64_t file_number,
                        uint64_t file_size,
                       const Slice& blockKey,
                        void* arg,
-                       bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput,DBImpl* db) ;
+                       bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput,DBImpl* db) ;
 
 Status RangeLookUp(const ReadOptions& options,
                        uint64_t file_number,
                        uint64_t file_size,
                        const Slice& startk, const Slice& endk,
                        void* arg,
-					   bool (*saver)(void*, const Slice&, const Slice&,std::string secKey,int topKOutput,DBImpl* db),
-                       string secKey,int topKOutput, DBImpl* db);
+					   bool (*saver)(void*, const Slice&, const Slice&,std::string& secKey,int& topKOutput,DBImpl* db),
+                       string& secKey,int& topKOutput, DBImpl* db);
 
   // Evict any entry for the specified file number
   void Evict(uint64_t file_number);
